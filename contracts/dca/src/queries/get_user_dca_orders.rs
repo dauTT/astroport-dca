@@ -23,10 +23,11 @@ pub fn get_user_dca_orders(deps: Deps, env: Env, user: String) -> StdResult<Vec<
         .load(deps.storage, &user_address)?
         .into_iter()
         .map(|order| {
+            let o = order.clone();
             Ok(DcaQueryInfo {
                 info: order,
-                token_allowance: match &order.initial_asset.info {
-                    AssetInfo::NativeToken { .. } => order.initial_asset.amount,
+                token_allowance: match &o.initial_asset.info {
+                    AssetInfo::NativeToken { .. } => o.initial_asset.amount,
                     AssetInfo::Token { contract_addr } => {
                         // since it is a cw20 token, we need to retrieve the current allowance for the dca contract
                         get_token_allowance(&deps, &env, &user_address, contract_addr)?
