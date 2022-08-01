@@ -18,6 +18,8 @@ pub struct DcaInfo {
     pub start_at: u64,
     /// The last time the `target_asset` was purchased
     pub last_purchase: u64,
+    /// The interval in seconds between DCA purchases
+    pub interval: u64,
     /// The assets to spend each DCA purchase
     pub deposit_assets: Vec<Asset>,
     /// The assets the user has deposited for their tips when performing DCA purchases
@@ -49,6 +51,7 @@ impl DcaInfo {
         id: String,
         created_at: u64,
         start_at: u64,
+        interval: u64,
         target_asset: AssetInfo,
         last_purchase: u64,
         deposit_assets: Vec<Asset>,
@@ -62,6 +65,7 @@ impl DcaInfo {
             id,
             created_at,
             start_at,
+            interval,
             target_asset,
             last_purchase,
             deposit_assets,
@@ -71,6 +75,14 @@ impl DcaInfo {
             max_hops,
             max_spread,
         };
+    }
+
+    pub fn id(self) -> String {
+        self.id
+    }
+
+    pub fn created_at(self) -> u64 {
+        self.created_at
     }
 }
 

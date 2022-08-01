@@ -78,12 +78,13 @@ pub fn create_dca_order(
         id.clone(),
         env.block.time.seconds(),
         start_at,
+        interval,
         target_asset.clone(),
         0,
         deposit_assets.clone(),
         tip_assets.clone(),
         gas.clone(),
-        purchase_schedules,
+        purchase_schedules.clone(),
         max_hops,
         max_spread,
     ));
@@ -99,6 +100,7 @@ pub fn create_dca_order(
         attr("deposit_assets", format!("{:?}", deposit_assets)),
         attr("tip_assets", format!("{:?}", tip_assets)),
         attr("target_asset", format!("{:?}", target_asset)),
+        attr("purchase_schedules", format!("{:?}", purchase_schedules)),
         attr("gas", format!("{:?}", gas)),
         attr("max_hops", format!("{:?}", max_hops)),
         attr("max_spread", format!("{:?}", max_spread)),
@@ -284,7 +286,7 @@ fn unique_asset_info_check(
 
 #[cfg(test)]
 mod tests {
-    use crate::state::{Config, WhitelistTokens, CONFIG};
+    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::{ExecuteMsg, PurchaseSchedule};
 
@@ -386,11 +388,33 @@ mod tests {
         };
 
         // execute the msg
-        let actual_response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        let orders = USER_DCA
+            .load(deps.as_ref().storage, &info.sender)
+            .unwrap_or_default();
+
+        assert_eq!(1, orders.len());
+
+        // let dca_0 {iy}= orders[0].clone();
         let expected_response = Response::new().add_attributes(vec![
-            attr("action", "deposit"),
-            attr("assets", format!("{:?}", deposit_assets)),
+            attr("action", "create_dca_order"),
+            attr("id", orders[0].to_owned().id()),
+            attr("created_at", orders[0].to_owned().created_at().to_string()),
+            attr("start_at", orders[0].start_at.to_string()),
+            attr("interval", orders[0].interval.to_string()),
+            attr("deposit_assets", format!("{:?}", orders[0].deposit_assets)),
+            attr("tip_assets", format!("{:?}", orders[0].tip_assets)),
+            attr("target_asset", format!("{:?}", orders[0].target_asset)),
+            attr(
+                "purchase_schedules",
+                format!("{:?}", orders[0].purchase_schedules),
+            ),
+            attr("gas", format!("{:?}", orders[0].gas)),
+            attr("max_hops", format!("{:?}", orders[0].max_hops)),
+            attr("max_spread", format!("{:?}", orders[0].max_spread)),
         ]);
-        assert_eq!(actual_response, expected_response)
+
+        assert_eq!(actual_response, expected_response);
     }
 }
