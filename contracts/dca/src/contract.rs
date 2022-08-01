@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use crate::error::ContractError;
 use crate::handlers::{
-    add_bot_tip, cancel_dca_order, create_dca_order, modify_dca_order, perform_dca_purchase,
-    update_config, update_user_config, withdraw, ModifyDcaOrderParameters,
+    add_bot_tip, cancel_dca_order, create_dca_order, deposit, modify_dca_order,
+    perform_dca_purchase, update_config, update_user_config, withdraw, ModifyDcaOrderParameters,
 };
 use crate::queries::{get_config, get_user_config, get_user_dca_orders};
 use crate::state::{Config, CONFIG};
@@ -51,6 +51,7 @@ pub fn instantiate(
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    /*
     let config = Config {
         max_hops: msg.max_hops,
         per_hop_fee: msg.per_hop_fee,
@@ -61,6 +62,8 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
+
+    */
 
     Ok(Response::new())
 }
@@ -134,6 +137,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::Deposit { assets } => deposit(deps, env, info, assets),
+
         ExecuteMsg::UpdateConfig {
             max_hops,
             per_hop_fee,
@@ -147,23 +152,35 @@ pub fn execute(
             whitelisted_tokens,
             max_spread,
         ),
+
         ExecuteMsg::UpdateUserConfig {
             max_hops,
             max_spread,
         } => update_user_config(deps, info, max_hops, max_spread),
+
         ExecuteMsg::CreateDcaOrder {
-            initial_asset,
-            target_asset,
+            start_at,
             interval,
-            dca_amount,
+            deposit_assets,
+            tip_assets,
+            target_asset,
+            gas,
+            purchase_schedules,
+            max_hops,
+            max_spread,
         } => create_dca_order(
             deps,
             env,
             info,
-            initial_asset,
-            target_asset,
+            start_at,
             interval,
-            dca_amount,
+            deposit_assets,
+            tip_assets,
+            target_asset,
+            gas,
+            purchase_schedules,
+            max_hops,
+            max_spread,
         ),
         ExecuteMsg::AddBotTip {} => add_bot_tip(deps, info),
         ExecuteMsg::Withdraw { tip: amount } => withdraw(deps, info, amount),

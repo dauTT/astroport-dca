@@ -1,27 +1,77 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
 use astroport::{
     asset::{Asset, AssetInfo},
     router::SwapOperation,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Decimal, Uint128};
 
 /// Describes information about a DCA order
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct DcaInfo {
-    /// The starting asset deposited by the user, with the amount representing the users deposited
-    /// amount of the token
-    pub initial_asset: Asset,
-    /// The asset being purchased in DCA purchases
-    pub target_asset: AssetInfo,
-    /// The interval in seconds between DCA purchases
-    pub interval: u64,
+    // Unique identifier
+    id: String,
+    // the time of the creation of of the dca.
+    created_at: u64,
+    // the time when the dca will start to become active
+    pub start_at: u64,
     /// The last time the `target_asset` was purchased
     pub last_purchase: u64,
-    /// The amount of `initial_asset` to spend each DCA purchase
-    pub dca_amount: Uint128,
+    /// The assets to spend each DCA purchase
+    pub deposit_assets: Vec<Asset>,
+    /// The assets the user has deposited for their tips when performing DCA purchases
+    pub tip_assets: Vec<Asset>,
+    /// The asset which the user wants to buy with the DCA order
+    pub target_asset: AssetInfo,
+    /// The amount of gas token (uluna) the user has deposited for their swaps when performing DCA purchases
+    pub gas: Asset,
+    /// The schedules for purchasing the target asset
+    pub purchase_schedules: Vec<PurchaseSchedule>,
+    /// An override for the maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing
+    pub max_hops: Option<u32>,
+    /// An override for the maximum amount of spread when performing a swap from `initial_asset` to `target_asset` when DCAing
+    pub max_spread: Option<Decimal>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct PurchaseSchedule {
+    /// Asset deposited to purchase the target asset
+    pub asset_info: AssetInfo,
+    /// The amount of asset to spend each DCA purchase
+    pub amount: Uint128,
+    /// The interval in seconds between DCA purchases
+    pub interval: u64,
+}
+
+impl DcaInfo {
+    pub const fn new(
+        id: String,
+        created_at: u64,
+        start_at: u64,
+        target_asset: AssetInfo,
+        last_purchase: u64,
+        deposit_assets: Vec<Asset>,
+        tip_assets: Vec<Asset>,
+        gas: Asset,
+        purchase_schedules: Vec<PurchaseSchedule>,
+        max_hops: Option<u32>,
+        max_spread: Option<Decimal>,
+    ) -> Self {
+        return DcaInfo {
+            id,
+            created_at,
+            start_at,
+            target_asset,
+            last_purchase,
+            deposit_assets,
+            tip_assets,
+            gas,
+            purchase_schedules,
+            max_hops,
+            max_spread,
+        };
+    }
 }
 
 /// Describes the parameters used for creating a contract
@@ -49,17 +99,24 @@ pub enum ExecuteMsg {
     /// Add uusd top-up for bots to perform DCA requests
     AddBotTip {},
     /// Cancels a DCA order, returning any native asset back to the user
-    CancelDcaOrder { initial_asset: AssetInfo },
+    CancelDcaOrder {
+        initial_asset: AssetInfo,
+    },
     /// Creates a new DCA order where `dca_amount` of token `initial_asset` will purchase
     /// `target_asset` every `interval`
     ///
     /// If `initial_asset` is a Cw20 token, the user needs to have increased the allowance prior to
     /// calling this execution
     CreateDcaOrder {
-        initial_asset: Asset,
-        target_asset: AssetInfo,
+        start_at: u64,
         interval: u64,
-        dca_amount: Uint128,
+        deposit_assets: Vec<Asset>,
+        tip_assets: Vec<Asset>,
+        target_asset: AssetInfo,
+        gas: Asset,
+        purchase_schedules: Vec<PurchaseSchedule>,
+        max_hops: Option<u32>,
+        max_spread: Option<Decimal>,
     },
     /// Modifies an existing DCA order, allowing the user to change certain parameters
     ModifyDcaOrder {
@@ -95,7 +152,17 @@ pub enum ExecuteMsg {
         max_spread: Option<Decimal>,
     },
     /// Withdraws a users bot tip from the contract.
-    Withdraw { tip: Uint128 },
+    Withdraw {
+        tip: Uint128,
+    },
+
+    // Deposit assets into the DCA contract.
+    // i) if the asset is native, it is the responsibility of the UI to generate the  deposit tx to the DCA contract
+    // ii) if the asset is a token contract, the DCA contract will execute the deposit tx.
+    //     However we assume the UI will generate the allowance TX
+    Deposit {
+        assets: Vec<Asset>,
+    },
 }
 
 /// This structure describes the query messages available in the contract
