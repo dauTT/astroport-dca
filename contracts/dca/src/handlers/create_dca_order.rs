@@ -296,41 +296,10 @@ mod tests {
         Addr, MemoryStorage, Response, Uint128,
     };
 
+    // use super::super::add_bot_tip::test_util::mock_config;
+
+    use super::super::add_bot_tip::test_util::mock_storage;
     use crate::contract::execute;
-
-    fn mock_storage() -> MemoryStorage {
-        let mock_config = Config {
-            whitelist_tokens: WhitelistTokens {
-                deposit: vec![
-                    AssetInfo::NativeToken {
-                        denom: "usdt".to_string(),
-                    },
-                    AssetInfo::NativeToken {
-                        denom: "uluna".to_string(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: Addr::unchecked("asset0"),
-                    },
-                ],
-                tip: vec![
-                    AssetInfo::NativeToken {
-                        denom: "usdt".to_string(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: Addr::unchecked("asset1"),
-                    },
-                ],
-            },
-            factory_addr: Addr::unchecked("XXX"),
-            router_addr: Addr::unchecked("YYY"),
-        };
-
-        let mut store = MockStorage::new();
-
-        _ = CONFIG.save(&mut store, &mock_config);
-
-        return store;
-    }
 
     #[test]
     // deposit assets are whitelisted
@@ -387,32 +356,40 @@ mod tests {
             max_spread: None,
         };
 
-        // execute the msg
-        let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
-        let orders = USER_DCA
+        // Check there are 2 DCA orders before executing the msg
+        let mut orders = USER_DCA
             .load(deps.as_ref().storage, &info.sender)
             .unwrap_or_default();
 
-        assert_eq!(1, orders.len());
+        assert_eq!(2, orders.len());
 
-        // let dca_0 {iy}= orders[0].clone();
+        // Execute the msg
+        let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        // Check there are 3 DCA orders after executing the msg
+        orders = USER_DCA
+            .load(deps.as_ref().storage, &info.sender)
+            .unwrap_or_default();
+
+        assert_eq!(3, orders.len());
+
+        // Check exprected and acutal response are the same
         let expected_response = Response::new().add_attributes(vec![
             attr("action", "create_dca_order"),
-            attr("id", orders[0].to_owned().id()),
-            attr("created_at", orders[0].to_owned().created_at().to_string()),
-            attr("start_at", orders[0].start_at.to_string()),
-            attr("interval", orders[0].interval.to_string()),
-            attr("deposit_assets", format!("{:?}", orders[0].deposit_assets)),
-            attr("tip_assets", format!("{:?}", orders[0].tip_assets)),
-            attr("target_asset", format!("{:?}", orders[0].target_asset)),
+            attr("id", orders[2].id()),
+            attr("created_at", orders[2].created_at().to_string()),
+            attr("start_at", orders[2].start_at.to_string()),
+            attr("interval", orders[2].interval.to_string()),
+            attr("deposit_assets", format!("{:?}", orders[2].deposit_assets)),
+            attr("tip_assets", format!("{:?}", orders[2].tip_assets)),
+            attr("target_asset", format!("{:?}", orders[2].target_asset)),
             attr(
                 "purchase_schedules",
-                format!("{:?}", orders[0].purchase_schedules),
+                format!("{:?}", orders[2].purchase_schedules),
             ),
-            attr("gas", format!("{:?}", orders[0].gas)),
-            attr("max_hops", format!("{:?}", orders[0].max_hops)),
-            attr("max_spread", format!("{:?}", orders[0].max_spread)),
+            attr("gas", format!("{:?}", orders[2].gas)),
+            attr("max_hops", format!("{:?}", orders[2].max_hops)),
+            attr("max_spread", format!("{:?}", orders[2].max_spread)),
         ]);
 
         assert_eq!(actual_response, expected_response);

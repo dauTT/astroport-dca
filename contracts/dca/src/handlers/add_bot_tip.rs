@@ -1,10 +1,14 @@
-use astroport::asset::UUSD_DENOM;
-use cosmwasm_std::{attr, DepsMut, MessageInfo, Response, StdResult};
-
-use crate::{
-    error::ContractError,
-    state::{UserConfig, USER_CONFIG},
+use astroport::asset::{Asset, AssetInfo};
+use astroport_dca::dca::DcaInfo;
+use cosmwasm_std::{
+    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
+    WasmMsg,
 };
+
+use cw20::Cw20ExecuteMsg;
+
+use crate::error::ContractError;
+use crate::state::{CONFIG, USER_DCA};
 
 /// ## Description
 /// Adds a tip to the contract for a users DCA purchases.
@@ -15,101 +19,325 @@ use crate::{
 /// * `deps` - A [`DepsMut`] that contains the dependencies.
 ///
 /// * `info` - A [`MessageInfo`] which contains a uusd tip to add to a users tip balance.
-pub fn add_bot_tip(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    let amount = info
-        .funds
-        .iter()
-        .find(|coin| coin.denom == UUSD_DENOM)
-        .ok_or(ContractError::InvalidZeroAmount {})?
-        .amount;
+pub fn add_bot_tip(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    dca_info_id: String,
+    asset: Asset,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    let whitelist_tokens = config.whitelist_tokens;
 
-    // update user tip in contract
-    USER_CONFIG.update(
+    // Check tip asset is in the whitelist
+    if !whitelist_tokens.is_tip_asset(&asset.info) {
+        return Err(ContractError::InvalidInput {
+            msg: format!("Tip asset, {:?},  not whitelisted", &asset.info),
+        });
+    }
+
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    let asset_clone = asset.clone();
+    match asset_clone.info {
+        AssetInfo::NativeToken { denom: _ } => {
+            asset.assert_sent_native_token_balance(&info)?;
+        }
+        AssetInfo::Token { contract_addr } => {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: contract_addr.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: info.sender.to_string(),
+                    recipient: env.contract.address.to_string(),
+                    amount: asset_clone.amount,
+                })?,
+                funds: vec![],
+            }));
+        }
+    }
+
+    // debug_assert_eq!(format!("{:?}", asset.clone()), "1 XXXXXXXXXXXXXXXXXXXXXXX");
+
+    USER_DCA.update(
         deps.storage,
         &info.sender,
-        |config| -> StdResult<UserConfig> {
+        |config| -> StdResult<Vec<DcaInfo>> {
             let mut config = config.unwrap_or_default();
-
-            config.tip_balance = config.tip_balance.checked_add(amount)?;
+            for dca_info in &mut config {
+                if dca_info.id() == dca_info_id {
+                    for a in &mut dca_info.tip_assets {
+                        if a.info == asset.info {
+                            a.amount = a.amount.checked_add(asset.amount).unwrap();
+                            return Ok(config);
+                        }
+                    }
+                }
+            }
 
             Ok(config)
         },
     )?;
 
-    Ok(Response::new().add_attributes(vec![
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "add_bot_tip"),
-        attr("tip_amount", amount),
+        attr("dca_info_id", dca_info_id),
+        attr("asset", format!("{:?}", asset)),
     ]))
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::state::USER_DCA;
+    use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Response,
+        Response, Uint128,
     };
 
-    use crate::{
-        contract::execute,
-        error::ContractError,
-        state::{UserConfig, USER_CONFIG},
-    };
+    use super::test_util::mock_storage; //::mock_storage;
+    use crate::contract::execute;
 
     #[test]
-    fn does_add_bot_tip() {
-        let mut deps = mock_dependencies(&[]);
+    // deposit assets are whitelisted
+    fn test_add_bot_tip_pass() {
+        // setup test
+        let mut deps = mock_dependencies();
+        deps.storage = mock_storage();
 
-        let tip_sent = coin(10000, "uusd");
+        let funds = [coin(100, "uluna")];
+        let info = mock_info("creator", &funds);
 
-        let info = mock_info("creator", &[tip_sent.clone()]);
-        let msg = ExecuteMsg::AddBotTip {};
+        let tip_asset = Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::from(100u128),
+        };
+        // build msg
+        // increment the uluna tip asset of 100 uluna of dca order 2
+        let msg = ExecuteMsg::AddBotTip {
+            dca_info_id: "2".to_string(),
+            asset: tip_asset.clone(),
+        };
 
-        // check that we got the expected response
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(
-            res,
-            Response::new().add_attributes(vec![
-                attr("action", "add_bot_tip"),
-                attr("tip_amount", tip_sent.amount)
-            ])
+        // execute the msg
+        let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        let dac_orders = USER_DCA
+            .load(deps.as_ref().storage, &info.sender)
+            .unwrap_or_default();
+
+        assert_eq!(2, dac_orders.len());
+
+        let order_2 = dac_orders.iter().find(|d| d.id() == "2").unwrap();
+
+        let expected_tip_asset = vec![
+            // amount incremented of 100 after executing AddBotTip msg
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::from(110u128),
+            },
+            // same as before executin the AddBotTip msg
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "usdt".to_string(),
+                },
+                amount: Uint128::from(5u128),
+            },
+        ];
+
+        assert_eq!(order_2.tip_assets, expected_tip_asset);
+
+        // let dca_0 {iy}= orders[0].clone();
+        let expected_response = Response::new().add_attributes(vec![
+            attr("action", "add_bot_tip"),
+            attr("dca_info_id", "2"),
+            attr("asset", format!("{:?}", tip_asset)),
+        ]);
+
+        assert_eq!(actual_response, expected_response);
+    }
+}
+
+#[cfg(test)]
+pub mod test_util {
+    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA};
+    use astroport::asset::{Asset, AssetInfo};
+    use astroport_dca::dca::{DcaInfo, PurchaseSchedule};
+    use cosmwasm_std::{
+        coin,
+        testing::{mock_info, MockStorage},
+        Addr, MemoryStorage, Uint128,
+    };
+
+    pub fn mock_storage() -> MemoryStorage {
+        let config = mock_config();
+
+        // save CONFIG to storage
+        let mut store = MockStorage::new();
+        _ = CONFIG.save(&mut store, &config);
+
+        // save USER_DCA to storage
+        let user_dca = mock_user_dca();
+        let funds = [coin(15, "usdt"), coin(100, "uluna")];
+        let info = mock_info("creator", &funds);
+        _ = USER_DCA.save(&mut store, &info.sender, &user_dca);
+
+        return store;
+    }
+
+    pub fn mock_config() -> Config {
+        return Config {
+            whitelist_tokens: WhitelistTokens {
+                deposit: vec![
+                    AssetInfo::NativeToken {
+                        denom: "usdt".to_string(),
+                    },
+                    AssetInfo::NativeToken {
+                        denom: "uluna".to_string(),
+                    },
+                    AssetInfo::Token {
+                        contract_addr: Addr::unchecked("asset0"),
+                    },
+                ],
+                tip: vec![
+                    AssetInfo::NativeToken {
+                        denom: "usdt".to_string(),
+                    },
+                    AssetInfo::Token {
+                        contract_addr: Addr::unchecked("asset1"),
+                    },
+                    AssetInfo::NativeToken {
+                        denom: "uluna".to_string(),
+                    },
+                ],
+            },
+            factory_addr: Addr::unchecked("XXX"),
+            router_addr: Addr::unchecked("YYY"),
+        };
+    }
+
+    pub fn mock_user_dca() -> Vec<DcaInfo> {
+        // define DCA order 1
+        let deposit_assets_1 = vec![Asset {
+            info: AssetInfo::NativeToken {
+                denom: "usdt".to_string(),
+            },
+            amount: Uint128::from(10u128),
+        }];
+
+        let tip_assets_1 = vec![Asset {
+            info: AssetInfo::NativeToken {
+                denom: "usdt".to_string(),
+            },
+            amount: Uint128::from(5u128),
+        }];
+
+        let target_asset_1 = AssetInfo::Token {
+            contract_addr: Addr::unchecked("XXX"),
+        };
+
+        let gas_1 = Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::from(100u128),
+        };
+
+        let purchase_schedules_1 = vec![PurchaseSchedule {
+            asset_info: AssetInfo::NativeToken {
+                denom: "usdt".to_string(),
+            },
+            amount: Uint128::from(10u128),
+            interval: 100u64,
+        }];
+
+        let id_1 = "1".to_string();
+        let dca1 = DcaInfo::new(
+            id_1,
+            10u64,
+            10u64,
+            10u64,
+            target_asset_1,
+            0u64,
+            deposit_assets_1,
+            tip_assets_1,
+            gas_1,
+            purchase_schedules_1,
+            None,
+            None,
         );
 
-        // check that user tip balance was added
-        let config = USER_CONFIG
-            .load(&deps.storage, &Addr::unchecked("creator"))
-            .unwrap();
-        assert_eq!(
-            config,
-            UserConfig {
-                tip_balance: tip_sent.amount,
-                ..UserConfig::default()
-            }
-        )
-    }
+        // define DCA order 2
+        let deposit_assets_2 = vec![
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "usdt".to_string(),
+                },
+                amount: Uint128::from(20u128),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("asset0"),
+                },
+                amount: Uint128::from(100u128),
+            },
+        ];
 
-    #[test]
-    fn does_require_funds() {
-        let mut deps = mock_dependencies(&[]);
+        let tip_assets_2 = vec![
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::from(10u128),
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "usdt".to_string(),
+                },
+                amount: Uint128::from(5u128),
+            },
+        ];
 
-        let info = mock_info("creator", &[]);
-        let msg = ExecuteMsg::AddBotTip {};
+        let target_asset_2 = AssetInfo::Token {
+            contract_addr: Addr::unchecked("XXX"),
+        };
 
-        // should error with InvalidZeroAmount failure
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, ContractError::InvalidZeroAmount {});
-    }
+        let gas_2 = Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::from(200u128),
+        };
 
-    #[test]
-    fn does_require_uusd_funds() {
-        let mut deps = mock_dependencies(&[]);
+        let purchase_schedules_2 = vec![PurchaseSchedule {
+            asset_info: AssetInfo::NativeToken {
+                denom: "usdt".to_string(),
+            },
+            amount: Uint128::from(20u128),
+            interval: 200u64,
+        }];
 
-        let info = mock_info("creator", &[coin(20000, "ukrw")]);
-        let msg = ExecuteMsg::AddBotTip {};
+        let id_2 = "2".to_string();
+        let dca2 = DcaInfo::new(
+            id_2,
+            10u64,
+            10u64,
+            10u64,
+            target_asset_2,
+            0u64,
+            deposit_assets_2,
+            tip_assets_2,
+            gas_2,
+            purchase_schedules_2,
+            None,
+            None,
+        );
 
-        // should error with InvalidZeroAmount
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, ContractError::InvalidZeroAmount {});
+        return vec![dca1, dca2];
     }
 }
