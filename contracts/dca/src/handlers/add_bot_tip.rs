@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 
 use crate::error::ContractError;
-use crate::state::{CONFIG, USER_DCA};
+use crate::state::{CONFIG, USER_DCA_ORDERS};
 
 /// ## Description
 /// Adds a tip to the contract for a users DCA purchases.
@@ -58,7 +58,7 @@ pub fn add_bot_tip(
 
     // debug_assert_eq!(format!("{:?}", asset.clone()), "1 XXXXXXXXXXXXXXXXXXXXXXX");
 
-    USER_DCA.update(
+    USER_DCA_ORDERS.update(
         deps.storage,
         &info.sender,
         |config| -> StdResult<Vec<DcaInfo>> {
@@ -87,7 +87,7 @@ pub fn add_bot_tip(
 
 #[cfg(test)]
 mod tests {
-    use crate::state::USER_DCA;
+    use crate::state::USER_DCA_ORDERS;
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
     use cosmwasm_std::{
@@ -125,7 +125,7 @@ mod tests {
         // execute the msg
         let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-        let dac_orders = USER_DCA
+        let dac_orders = USER_DCA_ORDERS
             .load(deps.as_ref().storage, &info.sender)
             .unwrap_or_default();
 
@@ -165,7 +165,7 @@ mod tests {
 
 #[cfg(test)]
 pub mod test_util {
-    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA};
+    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::{DcaInfo, PurchaseSchedule};
     use cosmwasm_std::{
@@ -181,11 +181,11 @@ pub mod test_util {
         let mut store = MockStorage::new();
         _ = CONFIG.save(&mut store, &config);
 
-        // save USER_DCA to storage
-        let user_dca = mock_user_dca();
+        // save USER_DCA_ORDERS to storage
+        let user_dca_orders = mock_user_dca_orders();
         let funds = [coin(15, "usdt"), coin(100, "uluna")];
         let info = mock_info("creator", &funds);
-        _ = USER_DCA.save(&mut store, &info.sender, &user_dca);
+        _ = USER_DCA_ORDERS.save(&mut store, &info.sender, &user_dca_orders);
 
         return store;
     }
@@ -221,7 +221,7 @@ pub mod test_util {
         };
     }
 
-    pub fn mock_user_dca() -> Vec<DcaInfo> {
+    pub fn mock_user_dca_orders() -> Vec<DcaInfo> {
         // define DCA order 1
         let deposit_assets_1 = vec![Asset {
             info: AssetInfo::NativeToken {

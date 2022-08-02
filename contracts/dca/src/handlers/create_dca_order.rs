@@ -1,5 +1,7 @@
 use crate::state::{WhitelistTokens, CONFIG};
-use crate::{error::ContractError, get_token_allowance::get_token_allowance, state::USER_DCA};
+use crate::{
+    error::ContractError, get_token_allowance::get_token_allowance, state::USER_DCA_ORDERS,
+};
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{DcaInfo, PurchaseSchedule};
 use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
@@ -47,7 +49,7 @@ pub fn create_dca_order(
     let config = CONFIG.load(deps.storage)?;
     let whitelist_tokens = config.whitelist_tokens;
 
-    let mut orders = USER_DCA
+    let mut orders = USER_DCA_ORDERS
         .may_load(deps.storage, &info.sender)?
         .unwrap_or_default();
 
@@ -89,7 +91,7 @@ pub fn create_dca_order(
         max_spread,
     ));
 
-    USER_DCA.save(deps.storage, &info.sender, &orders)?;
+    USER_DCA_ORDERS.save(deps.storage, &info.sender, &orders)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "create_dca_order"),
@@ -286,7 +288,7 @@ fn unique_asset_info_check(
 
 #[cfg(test)]
 mod tests {
-    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA};
+    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::{ExecuteMsg, PurchaseSchedule};
 
@@ -357,7 +359,7 @@ mod tests {
         };
 
         // Check there are 2 DCA orders before executing the msg
-        let mut orders = USER_DCA
+        let mut orders = USER_DCA_ORDERS
             .load(deps.as_ref().storage, &info.sender)
             .unwrap_or_default();
 
@@ -367,7 +369,7 @@ mod tests {
         let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // Check there are 3 DCA orders after executing the msg
-        orders = USER_DCA
+        orders = USER_DCA_ORDERS
             .load(deps.as_ref().storage, &info.sender)
             .unwrap_or_default();
 

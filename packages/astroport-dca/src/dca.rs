@@ -77,12 +77,12 @@ impl DcaInfo {
         };
     }
 
-    pub fn id(self) -> String {
-        self.id
+    pub fn id(&self) -> String {
+        self.id.to_owned()
     }
 
-    pub fn created_at(self) -> u64 {
-        self.created_at
+    pub fn created_at(&self) -> u64 {
+        self.created_at.to_owned()
     }
 }
 
@@ -109,7 +109,12 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Add uusd top-up for bots to perform DCA requests
-    AddBotTip {},
+    AddBotTip {
+        // The unique Id in DCA order
+        dca_info_id: String,
+        // An asset in the whitelist of type 'tip', which willl be use ti reward the bot.
+        asset: Asset,
+    },
     /// Cancels a DCA order, returning any native asset back to the user
     CancelDcaOrder {
         initial_asset: AssetInfo,

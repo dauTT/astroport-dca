@@ -11,19 +11,8 @@ use astroport_dca::dca::DcaInfo;
 /// Stores the main dca module parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    /*
-    /// The maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing if the user does not specify
-    pub max_hops: u32,
-    /// The maximum amount of spread when performing a swap from `initial_asset` to `target_asset` when DCAing if the user does not specify
-    pub max_spread: Decimal,
-    /// The fee a user must pay per hop performed in a DCA purchase
-    pub per_hop_fee: Uint128,
-    /// The whitelisted tokens that can be used in a DCA purchase route
-
-    */
-    // the list of tokens which are allowed in the DCA contracts.
+    // The list of tokens which are allowed in the DCA contracts.
     pub whitelist_tokens: WhitelistTokens,
-
     /// The address of the Astroport factory contract
     pub factory_addr: Addr,
     /// The address of the Astroport router contract
@@ -34,7 +23,6 @@ pub struct Config {
 pub struct WhitelistTokens {
     // Token which can be by the user to deposit in the DCA contract
     pub deposit: Vec<AssetInfo>,
-
     // Token which can be used by the user to reward a bot for
     // executing DCA orders.
     pub tip: Vec<AssetInfo>,
@@ -73,5 +61,6 @@ impl Default for UserConfig {
 
 /// The contract configuration
 pub const CONFIG: Item<Config> = Item::new("config");
-/// The DCA orders for a user
-pub const USER_DCA: Map<&Addr, Vec<DcaInfo>> = Map::new("user_dca");
+/// The DCA orders for a user.
+/// The key is the user address and the value is the corresponding list of DCA orders
+pub const USER_DCA_ORDERS: Map<&Addr, Vec<DcaInfo>> = Map::new("USER_DCA_ORDERS");
