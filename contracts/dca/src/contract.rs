@@ -3,12 +3,12 @@ use std::str::FromStr;
 use crate::error::ContractError;
 use crate::handlers::{
     add_bot_tip, cancel_dca_order, create_dca_order, deposit, modify_dca_order,
-    perform_dca_purchase, update_config, update_user_config, withdraw, ModifyDcaOrderParameters,
+    perform_dca_purchase, update_config, withdraw, ModifyDcaOrderParameters,
 };
-use crate::queries::{get_config, get_user_config, get_user_dca_orders};
+use crate::queries::{get_config, get_user_dca_orders};
 use crate::state::{Config, CONFIG};
 
-use astroport::asset::addr_validate_to_lower;
+use astroport::asset::{addr_validate_to_lower, Asset};
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
@@ -152,41 +152,47 @@ pub fn execute(
             whitelisted_tokens,
             max_spread,
         ),
-
+        /*
         ExecuteMsg::UpdateUserConfig {
             max_hops,
             max_spread,
         } => update_user_config(deps, info, max_hops, max_spread),
 
+        */
         ExecuteMsg::CreateDcaOrder {
             start_at,
             interval,
-            deposit_assets,
-            tip_assets,
-            target_asset,
-            gas,
-            purchase_schedules,
+            dca_amount,
             max_hops,
             max_spread,
+            deposit,
+            tip,
+            gas,
+            target_info,
         } => create_dca_order(
             deps,
             env,
             info,
             start_at,
             interval,
-            deposit_assets,
-            tip_assets,
-            target_asset,
-            gas,
-            purchase_schedules,
+            dca_amount,
             max_hops,
             max_spread,
+            deposit,
+            tip,
+            gas,
+            target_info,
         ),
-        ExecuteMsg::AddBotTip {} => add_bot_tip(deps, info),
+        ExecuteMsg::AddBotTip { dca_info_id, asset } => {
+            add_bot_tip(deps, env, info, dca_info_id, asset)
+        }
         ExecuteMsg::Withdraw { tip: amount } => withdraw(deps, info, amount),
+
+        /*
         ExecuteMsg::PerformDcaPurchase { user, hops } => {
             perform_dca_purchase(deps, env, info, user, hops)
         }
+        */
         ExecuteMsg::CancelDcaOrder { initial_asset } => cancel_dca_order(deps, info, initial_asset),
         ExecuteMsg::ModifyDcaOrder {
             old_initial_asset,
@@ -233,7 +239,7 @@ pub fn execute(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&get_config(deps)?),
-        QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
+        //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
         QueryMsg::UserDcaOrders { user } => to_binary(&get_user_dca_orders(deps, env, user)?),
     }
 }

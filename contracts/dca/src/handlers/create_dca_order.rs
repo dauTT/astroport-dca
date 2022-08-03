@@ -1,10 +1,12 @@
-use crate::state::{WhitelistTokens, CONFIG};
+use crate::state::{Config, WhitelistTokens, CONFIG};
 use crate::{
     error::ContractError, get_token_allowance::get_token_allowance, state::USER_DCA_ORDERS,
 };
-use astroport::asset::{Asset, AssetInfo};
-use astroport_dca::dca::{DcaInfo, PurchaseSchedule};
-use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
+use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
+use astroport_dca::dca::{Balance, DcaInfo};
+use cosmwasm_std::{
+    attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
+};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -38,16 +40,16 @@ pub fn create_dca_order(
     info: MessageInfo,
     start_at: u64,
     interval: u64,
-    deposit_assets: Vec<Asset>,
-    tip_assets: Vec<Asset>,
-    target_asset: AssetInfo,
-    gas: Asset,
-    purchase_schedules: Vec<PurchaseSchedule>,
+    dca_amount: Asset,
     max_hops: Option<u32>,
     max_spread: Option<Decimal>,
+    deposit: Asset,
+    tip: Asset,
+    gas: Asset,
+    target_info: AssetInfo,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let whitelist_tokens = config.whitelist_tokens;
+    let whitelist_tokens = config.whitelist_tokens.clone();
 
     let mut orders = USER_DCA_ORDERS
         .may_load(deps.storage, &info.sender)?
@@ -57,38 +59,46 @@ pub fn create_dca_order(
     let id = Uuid::new_v4().simple().to_string();
 
     // start_at > created_at
-    // target_asset whitelisted and > amount >0
-    // deposit_asset whitelisted and > amount > 0
+    // target_asset whitelisted and  amount >0
+    // deposit_asset whitelisted and  amount > 0
     // tip_asset whitelisted and amount > 0
     // gas amount > 0
-
     sanity_checks(
         &deps,
         &env,
         &info,
+        &config,
         &whitelist_tokens,
-        // interval,
-        &deposit_assets,
-        &tip_assets,
-        //  target_asset.clone(),
-        // gas.clone(),
-        &purchase_schedules,
+        &dca_amount,
+        &deposit,
+        &tip,
+        &gas,
     )?;
 
+    let balance = Balance {
+        deposit: deposit.clone(),
+        spent: Asset {
+            info: deposit.info.clone(),
+            amount: Uint128::zero(),
+        },
+        target: Asset {
+            info: target_info.clone(),
+            amount: Uint128::zero(),
+        },
+        tip: tip.clone(),
+        gas: gas.clone(),
+        last_purchase: 0u64,
+    };
     // store dca order
     orders.push(DcaInfo::new(
         id.clone(),
         env.block.time.seconds(),
         start_at,
         interval,
-        target_asset.clone(),
-        0,
-        deposit_assets.clone(),
-        tip_assets.clone(),
-        gas.clone(),
-        purchase_schedules.clone(),
+        dca_amount.clone(),
         max_hops,
         max_spread,
+        balance.clone(),
     ));
 
     USER_DCA_ORDERS.save(deps.storage, &info.sender, &orders)?;
@@ -99,13 +109,13 @@ pub fn create_dca_order(
         attr("created_at", created_at.to_string()),
         attr("start_at", start_at.to_string()),
         attr("interval", interval.to_string()),
-        attr("deposit_assets", format!("{:?}", deposit_assets)),
-        attr("tip_assets", format!("{:?}", tip_assets)),
-        attr("target_asset", format!("{:?}", target_asset)),
-        attr("purchase_schedules", format!("{:?}", purchase_schedules)),
-        attr("gas", format!("{:?}", gas)),
+        attr("dca_amount", dca_amount.to_string()),
         attr("max_hops", format!("{:?}", max_hops)),
         attr("max_spread", format!("{:?}", max_spread)),
+        attr("deposit", format!("{:?}", deposit)),
+        attr("tip", format!("{:?}", tip)),
+        attr("gas", format!("{:?}", gas)),
+        attr("target_info", format!("{:?}", target_info)),
     ]))
 }
 
@@ -113,55 +123,83 @@ fn sanity_checks(
     deps: &DepsMut,
     env: &Env,
     info: &MessageInfo,
+    config: &Config,
     whitelist_tokens: &WhitelistTokens,
-    // interval: u64,
-    deposit_assets: &Vec<Asset>,
-    tip_assets: &Vec<Asset>,
-    // target_asset: AssetInfo,
-    //  gas: Asset,
-    purchase_schedules: &Vec<PurchaseSchedule>,
-) -> StdResult<()> {
+    dca_amount: &Asset,
+    deposit: &Asset,
+    tip: &Asset,
+    gas: &Asset,
+) -> Result<(), ContractError> {
     let asset_map = &mut HashMap::new();
 
-    // check deposited assets list is not empty
-    if deposit_assets.len() == 0 {
-        return Err(StdError::generic_err("Deposit_assets list empty"));
+    // Check amount to spend at each purchase is of the same type of
+    // deposit asset
+    if !(dca_amount.info == deposit.info) {
+        return Err(ContractError::InvalidInput {
+            msg: format!(
+                "The asset type of dac_amount asset and deposit asset must be the same.
+                 Got dac_amount asset type: {:?}  , deposit asset type: {:?}",
+                dca_amount, deposit.info
+            ),
+        });
     }
 
-    let mut unique_asset_info_list: &mut Vec<AssetInfo> = &mut vec![];
-    for asset in deposit_assets.iter() {
-        // check asset is in the Whitelist
-        if !whitelist_tokens.is_deposit_asset(&asset.info) {
-            return Err(StdError::generic_err(format!(
-                "Deposited asset, {:?},  not whitelisted",
-                asset.info
-            )));
-        }
-
-        // check no duplicated asset info in the deposit list
-        unique_asset_info_check(&mut unique_asset_info_list, asset.info.clone())?;
-
-        aggregate_assets(asset_map, asset.clone());
+    // check deposit asset is in the Whitelist
+    if !whitelist_tokens.is_deposit_asset(&deposit.info) {
+        return Err(ContractError::InvalidInput {
+            msg: format!("Deposited asset, {:?},  not whitelisted", deposit.info),
+        });
     }
 
-    let unique_asset_info_list = &mut vec![];
-    // check tip assets are whitelisted
-    for asset in tip_assets.iter() {
-        if !whitelist_tokens.is_tip_asset(&asset.info) {
-            return Err(StdError::generic_err(format!(
-                " tip asset, {:?},  not whitelisted",
-                asset.info
-            )));
-        }
-
-        // check no duplicated asset info in the tip list
-        unique_asset_info_check(unique_asset_info_list, asset.info.clone())?;
-
-        aggregate_assets(asset_map, asset.clone());
+    // check tip asset is whitelisted
+    if !whitelist_tokens.is_tip_asset(&tip.info) {
+        return Err(ContractError::InvalidInput {
+            msg: format!(" tip asset, {:?},  not whitelisted", tip.info),
+        });
     }
 
+    // Check deposit asset amount > 0.
+    // For Uint128 amount, it is equivalent to check that the amount is not zero.
+    if deposit.amount.is_zero() {
+        return Err(ContractError::InvalidInput {
+            msg: format!("Expected Deposited asset > 0, got 0"),
+        });
+    }
+
+    // Check tip amount > 0
+    // For Uint128 amount, it is equivalent to check that the amount is not zero.
+    if tip.amount.is_zero() {
+        return Err(ContractError::InvalidInput {
+            msg: format!("Expected tip asset > 0, got 0"),
+        });
+    }
+
+    // Check gas amount > 0
+    // For Uint128 amount, it is equivalent to check that the amount is not zero.
+    if gas.amount.is_zero() {
+        return Err(ContractError::InvalidInput {
+            msg: format!("Expected gas amount  > 0, got 0"),
+        });
+    }
+
+    // check gas is the native gas asset of the chain
+    if !(gas.info == config.gas_info) {
+        return Err(ContractError::InvalidInput {
+            msg: format!(
+                "Expected gas to be {}, got {:?} ",
+                config.gas_info,
+                gas.info.clone()
+            ),
+        });
+    }
+
+    aggregate_assets(asset_map, deposit.clone());
+    aggregate_assets(asset_map, tip.clone());
+    aggregate_assets(asset_map, gas.clone());
+
+    // let assets = vec![deposit, tip, gas];
+    // aggregate_assets(asset_map, asset.clone());
     for (_, asset) in asset_map {
-        asset.assert_sent_native_token_balance(&info)?;
         // check that user has sent the valid tokens to the contract
         // if native token, they should have included it in the message
         // otherwise, if cw20 token, they should have provided the correct allowance
@@ -171,81 +209,12 @@ fn sanity_checks(
                 let allowance =
                     get_token_allowance(&deps.as_ref(), &env, &info.sender, contract_addr)?;
                 if allowance != asset.amount {
-                    return Err(StdError::generic_err(format!(
-                        "Aggregated asset amount in the DCA order {:?} is not equal to allowance set by token",
-                        asset
-                    )));
+                    return Err(ContractError::InvalidTokenDeposit {
+                        token: contract_addr.to_string(),
+                    });
                 }
             }
         }
-    }
-
-    // Check purchase_schedule consistent with the deposited assets
-    if deposit_assets.len() != purchase_schedules.len() {
-        return Err(StdError::generic_err(
-            "Not all deposit assets have a corresponding purchase schedule or viceversa",
-        ));
-    }
-
-    /*
-    let deposit_asset_info_list = deposit_assets
-        .iter()
-        .map(|a| a.info.clone())
-        .collect::<Vec<AssetInfo>>();
-
-        */
-    let unique_asset_info_list = &mut vec![];
-    for ps in purchase_schedules.iter() {
-        /*
-                if !deposit_asset_info_list.contains(&ps.asset_info) {
-                    return Err(StdError::generic_err(format!(
-                        "Purchase schedule invalid. The asset, {:?}, does not appear in the deposit asset list",
-                        ps.asset_info
-                    )));
-                }
-        */
-
-        // this flag is true if purchase asset info is included in the deposit asset info
-        let mut included_pc_asset_info = false;
-        for da in deposit_assets.iter() {
-            if da.info == ps.asset_info {
-                included_pc_asset_info = true;
-
-                // check that purchase asset amount is less than deposited asset amount
-                if ps.amount.gt(&da.amount) {
-                    return Err(StdError::generic_err(format!(
-                        "Deposited asset, {:?},  is not divisible by the purchase amount, {:?}",
-                        da, ps
-                    )));
-                }
-
-                /*
-                // This check is maybe to restrictive?
-                if !da
-                    .amount
-                    .checked_rem(ps.amount)
-                    .map_err(|e| StdError::DivideByZero { source: e })?
-                    .is_zero()
-                {
-                    return Err(StdError::generic_err(format!(
-                        "Deposited asset, {:?},  is not divisible by the purchase amount, {:?}",
-                        da, ps
-                    )));
-                }
-
-                */
-            }
-        }
-
-        if included_pc_asset_info == false {
-            return Err(StdError::generic_err(format!(
-                "Purchase schedule invalid. The asset, {:?}, does not appear in the deposit asset list",
-                ps.asset_info
-            )));
-        }
-
-        // check no duplicated asset info in the purchase schedule list
-        unique_asset_info_check(unique_asset_info_list, ps.asset_info.clone())?;
     }
 
     return Ok(());
@@ -271,36 +240,21 @@ fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
     }
 }
 
-fn unique_asset_info_check(
-    asset_info_list: &mut Vec<AssetInfo>,
-    asset_info: AssetInfo,
-) -> StdResult<()> {
-    if asset_info_list.contains(&asset_info) {
-        return Err(StdError::generic_err(format!(
-            "Duplicate asset info, {:?}, in the tip asset list",
-            asset_info
-        )));
-    } else {
-        asset_info_list.push(asset_info.clone())
-    }
-    return Ok(());
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA_ORDERS};
+    use crate::state::USER_DCA_ORDERS;
     use astroport::asset::{Asset, AssetInfo};
-    use astroport_dca::dca::{ExecuteMsg, PurchaseSchedule};
+    use astroport_dca::dca::{Balance, ExecuteMsg};
 
     use cosmwasm_std::{
         attr, coin,
-        testing::{mock_dependencies, mock_env, mock_info, MockStorage},
-        Addr, MemoryStorage, Response, Uint128,
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr, Response, Uint128,
     };
 
     // use super::super::add_bot_tip::test_util::mock_config;
 
-    use super::super::add_bot_tip::test_util::mock_storage;
+    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
     use crate::contract::execute;
 
     #[test]
@@ -308,54 +262,50 @@ mod tests {
     fn test_create_dca_order_pass() {
         // setup test
         let mut deps = mock_dependencies();
-        deps.storage = mock_storage();
+        deps.storage = mock_storage_valid_data();
 
-        let funds = [coin(15, "usdt"), coin(100, "uluna")];
+        let funds = [coin(200, "usdt"), coin(100, "uluna")];
         let info = mock_info("creator", &funds);
 
         // build msg
-        let deposit_assets = vec![Asset {
-            info: AssetInfo::NativeToken {
-                denom: "usdt".to_string(),
-            },
-            amount: Uint128::from(10u128),
-        }];
-
-        let tip_assets = vec![Asset {
+        let dca_amount = Asset {
             info: AssetInfo::NativeToken {
                 denom: "usdt".to_string(),
             },
             amount: Uint128::from(5u128),
-        }];
-
-        let target_asset = AssetInfo::Token {
-            contract_addr: Addr::unchecked("XXX"),
         };
-
+        let deposit = Asset {
+            info: AssetInfo::NativeToken {
+                denom: "usdt".to_string(),
+            },
+            amount: Uint128::from(100u128),
+        };
+        let tip = Asset {
+            info: AssetInfo::NativeToken {
+                denom: "usdt".to_string(),
+            },
+            amount: Uint128::from(100u128),
+        };
         let gas = Asset {
             info: AssetInfo::NativeToken {
                 denom: "uluna".to_string(),
             },
             amount: Uint128::from(100u128),
         };
+        let target_info = AssetInfo::Token {
+            contract_addr: Addr::unchecked("contract_addr"),
+        };
 
-        let purchase_schedules = vec![PurchaseSchedule {
-            asset_info: AssetInfo::NativeToken {
-                denom: "usdt".to_string(),
-            },
-            amount: Uint128::from(10u128),
-            interval: 100u64,
-        }];
         let msg = ExecuteMsg::CreateDcaOrder {
             start_at: 100u64,
             interval: 100u64,
-            deposit_assets: deposit_assets.clone(),
-            tip_assets: tip_assets.clone(),
-            target_asset: target_asset.clone(),
-            gas: gas.clone(),
-            purchase_schedules: purchase_schedules.clone(),
+            dca_amount: dca_amount.clone(),
             max_hops: None,
             max_spread: None,
+            deposit: deposit.clone(),
+            tip: tip.clone(),
+            gas: gas.clone(),
+            target_info: target_info.clone(),
         };
 
         // Check there are 2 DCA orders before executing the msg
@@ -375,23 +325,23 @@ mod tests {
 
         assert_eq!(3, orders.len());
 
-        // Check exprected and acutal response are the same
+        // Check expected and actual response are the same
         let expected_response = Response::new().add_attributes(vec![
             attr("action", "create_dca_order"),
             attr("id", orders[2].id()),
             attr("created_at", orders[2].created_at().to_string()),
             attr("start_at", orders[2].start_at.to_string()),
             attr("interval", orders[2].interval.to_string()),
-            attr("deposit_assets", format!("{:?}", orders[2].deposit_assets)),
-            attr("tip_assets", format!("{:?}", orders[2].tip_assets)),
-            attr("target_asset", format!("{:?}", orders[2].target_asset)),
-            attr(
-                "purchase_schedules",
-                format!("{:?}", orders[2].purchase_schedules),
-            ),
-            attr("gas", format!("{:?}", orders[2].gas)),
+            attr("dca_amount", orders[2].dca_amount.to_string()),
             attr("max_hops", format!("{:?}", orders[2].max_hops)),
             attr("max_spread", format!("{:?}", orders[2].max_spread)),
+            attr("deposit", format!("{:?}", orders[2].balance.deposit)),
+            attr("tip", format!("{:?}", orders[2].balance.tip)),
+            attr("gas", format!("{:?}", orders[2].balance.gas)),
+            attr(
+                "target_info",
+                format!("{:?}", orders[2].balance.target.info),
+            ),
         ]);
 
         assert_eq!(actual_response, expected_response);

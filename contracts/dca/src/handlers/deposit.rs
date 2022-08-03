@@ -63,58 +63,24 @@ pub fn deposit(
 
 #[cfg(test)]
 mod tests {
-    use crate::state::{Config, WhitelistTokens, CONFIG};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
 
     use cosmwasm_std::{
         attr, coin,
-        testing::{mock_dependencies, mock_env, mock_info, MockStorage},
-        Addr, MemoryStorage, Response, Uint128,
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr, Response, Uint128,
     };
 
+    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
     use crate::contract::execute;
-
-    fn mock_storage() -> MemoryStorage {
-        let mock_config = Config {
-            whitelist_tokens: WhitelistTokens {
-                deposit: vec![
-                    AssetInfo::NativeToken {
-                        denom: "usdt".to_string(),
-                    },
-                    AssetInfo::NativeToken {
-                        denom: "uluna".to_string(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: Addr::unchecked("asset0"),
-                    },
-                ],
-                tip: vec![
-                    AssetInfo::NativeToken {
-                        denom: "usdt".to_string(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: Addr::unchecked("asset1"),
-                    },
-                ],
-            },
-            factory_addr: Addr::unchecked("XXX"),
-            router_addr: Addr::unchecked("YYY"),
-        };
-
-        let mut store = MockStorage::new();
-
-        _ = CONFIG.save(&mut store, &mock_config);
-
-        return store;
-    }
 
     #[test]
     // deposit assets are whitelisted
     fn test_deposit_pass() {
         // setup test
         let mut deps = mock_dependencies();
-        deps.storage = mock_storage();
+        deps.storage = mock_storage_valid_data();
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);
@@ -151,7 +117,7 @@ mod tests {
     fn test_deposit_token_unsupported() {
         // setup test
         let mut deps = mock_dependencies();
-        deps.storage = mock_storage();
+        deps.storage = mock_storage_valid_data();
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);
@@ -163,6 +129,7 @@ mod tests {
             },
             amount: Uint128::from(100u128),
         }];
+
         let msg = ExecuteMsg::Deposit {
             assets: assets.clone(),
         };
@@ -181,7 +148,7 @@ mod tests {
     fn test_deposit_native_token_amount_mismatch() {
         // setup test
         let mut deps = mock_dependencies();
-        deps.storage = mock_storage();
+        deps.storage = mock_storage_valid_data();
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);

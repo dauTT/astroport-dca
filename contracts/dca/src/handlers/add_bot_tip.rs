@@ -1,4 +1,4 @@
-use astroport::asset::{Asset, AssetInfo};
+use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
 use astroport_dca::dca::DcaInfo;
 use cosmwasm_std::{
     attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
@@ -56,25 +56,26 @@ pub fn add_bot_tip(
         }
     }
 
-    // debug_assert_eq!(format!("{:?}", asset.clone()), "1 XXXXXXXXXXXXXXXXXXXXXXX");
-
     USER_DCA_ORDERS.update(
         deps.storage,
         &info.sender,
-        |config| -> StdResult<Vec<DcaInfo>> {
-            let mut config = config.unwrap_or_default();
-            for dca_info in &mut config {
+        |orders| -> Result<Vec<DcaInfo>, ContractError> {
+            let mut orders = orders.ok_or(ContractError::NonexistentDca {})?;
+            for dca_info in &mut orders {
                 if dca_info.id() == dca_info_id {
-                    for a in &mut dca_info.tip_assets {
-                        if a.info == asset.info {
-                            a.amount = a.amount.checked_add(asset.amount).unwrap();
-                            return Ok(config);
-                        }
-                    }
+                    dca_info.balance.tip.amount = dca_info
+                        .balance
+                        .tip
+                        .amount
+                        .checked_add(asset.amount)
+                        .unwrap();
+                    return Ok(orders);
                 }
             }
 
-            Ok(config)
+            return Err(ContractError::InvalidInput {
+                msg: format!("Invalid DCA order id: {:?}", dca_info_id),
+            });
         },
     )?;
 
@@ -93,10 +94,10 @@ mod tests {
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
-        Response, Uint128,
+        Addr, Empty, Response, Uint128,
     };
 
-    use super::test_util::mock_storage; //::mock_storage;
+    use super::test_util::mock_storage_valid_data; //::mock_storage;
     use crate::contract::execute;
 
     #[test]
@@ -104,21 +105,21 @@ mod tests {
     fn test_add_bot_tip_pass() {
         // setup test
         let mut deps = mock_dependencies();
-        deps.storage = mock_storage();
+        deps.storage = mock_storage_valid_data();
 
-        let funds = [coin(100, "uluna")];
+        let funds = [coin(100, "ibc/usdx")];
         let info = mock_info("creator", &funds);
 
         let tip_asset = Asset {
-            info: AssetInfo::NativeToken {
-                denom: "uluna".to_string(),
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("tip_2_addr"),
             },
-            amount: Uint128::from(100u128),
+            amount: Uint128::from(50u128),
         };
         // build msg
         // increment the uluna tip asset of 100 uluna of dca order 2
         let msg = ExecuteMsg::AddBotTip {
-            dca_info_id: "2".to_string(),
+            dca_info_id: "order_2".to_string(),
             asset: tip_asset.clone(),
         };
 
@@ -131,50 +132,41 @@ mod tests {
 
         assert_eq!(2, dac_orders.len());
 
-        let order_2 = dac_orders.iter().find(|d| d.id() == "2").unwrap();
+        let order_2 = dac_orders.iter().find(|d| d.id() == "order_2").unwrap();
 
-        let expected_tip_asset = vec![
-            // amount incremented of 100 after executing AddBotTip msg
-            Asset {
-                info: AssetInfo::NativeToken {
-                    denom: "uluna".to_string(),
-                },
-                amount: Uint128::from(110u128),
+        let expected_balance_tip = Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("tip_2_addr"),
             },
-            // same as before executin the AddBotTip msg
-            Asset {
-                info: AssetInfo::NativeToken {
-                    denom: "usdt".to_string(),
-                },
-                amount: Uint128::from(5u128),
-            },
-        ];
+            amount: Uint128::from(150u128),
+        };
+        assert_eq!(order_2.balance.tip, expected_balance_tip);
 
-        assert_eq!(order_2.tip_assets, expected_tip_asset);
-
-        // let dca_0 {iy}= orders[0].clone();
-        let expected_response = Response::new().add_attributes(vec![
+        let expected_response: Response<Empty> = Response::new().add_attributes(vec![
             attr("action", "add_bot_tip"),
-            attr("dca_info_id", "2"),
+            attr("dca_info_id", "order_2"),
             attr("asset", format!("{:?}", tip_asset)),
         ]);
 
-        assert_eq!(actual_response, expected_response);
+        assert_eq!(actual_response.attributes, expected_response.attributes);
+        assert_eq!(format!("{:?}", actual_response.messages), "[SubMsg { id: 0, msg: Wasm(Execute { contract_addr: \"tip_2_addr\", msg: Binary(7b227472616e736665725f66726f6d223a7b226f776e6572223a2263726561746f72222c22726563697069656e74223a22636f736d6f7332636f6e7472616374222c22616d6f756e74223a223530227d7d), funds: [] }), gas_limit: None, reply_on: Never }]")
     }
 }
 
 #[cfg(test)]
 pub mod test_util {
     use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA_ORDERS};
-    use astroport::asset::{Asset, AssetInfo};
-    use astroport_dca::dca::{DcaInfo, PurchaseSchedule};
+    use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
+    use astroport::pair::DEFAULT_SLIPPAGE;
+    use astroport_dca::dca::{Balance, DcaInfo};
     use cosmwasm_std::{
         coin,
         testing::{mock_info, MockStorage},
-        Addr, MemoryStorage, Uint128,
+        Addr, Decimal, MemoryStorage, Uint128,
     };
+    use std::str::FromStr;
 
-    pub fn mock_storage() -> MemoryStorage {
+    pub fn mock_storage_valid_data() -> MemoryStorage {
         let config = mock_config();
 
         // save CONFIG to storage
@@ -182,7 +174,7 @@ pub mod test_util {
         _ = CONFIG.save(&mut store, &config);
 
         // save USER_DCA_ORDERS to storage
-        let user_dca_orders = mock_user_dca_orders();
+        let user_dca_orders = mock_user_dca_orders_valid_data();
         let funds = [coin(15, "usdt"), coin(100, "uluna")];
         let info = mock_info("creator", &funds);
         _ = USER_DCA_ORDERS.save(&mut store, &info.sender, &user_dca_orders);
@@ -192,6 +184,12 @@ pub mod test_util {
 
     pub fn mock_config() -> Config {
         return Config {
+            max_hops: 3u32,
+            max_spread: Decimal::from_str(DEFAULT_SLIPPAGE).unwrap(),
+            per_hop_fee: Uint128::from(100u128),
+            gas_info: AssetInfo::NativeToken {
+                denom: ULUNA_DENOM.to_string(),
+            },
             whitelist_tokens: WhitelistTokens {
                 deposit: vec![
                     AssetInfo::NativeToken {
@@ -209,135 +207,127 @@ pub mod test_util {
                         denom: "usdt".to_string(),
                     },
                     AssetInfo::Token {
-                        contract_addr: Addr::unchecked("asset1"),
+                        contract_addr: Addr::unchecked("axlusdc"),
                     },
-                    AssetInfo::NativeToken {
-                        denom: "uluna".to_string(),
+                    AssetInfo::Token {
+                        contract_addr: Addr::unchecked("tip_2_addr"),
                     },
                 ],
             },
-            factory_addr: Addr::unchecked("XXX"),
-            router_addr: Addr::unchecked("YYY"),
+            factory_addr: Addr::unchecked("factory_addr"),
+            router_addr: Addr::unchecked("router_addr"),
         };
     }
 
-    pub fn mock_user_dca_orders() -> Vec<DcaInfo> {
-        // define DCA order 1
-        let deposit_assets_1 = vec![Asset {
+    pub fn mock_user_dca_orders_valid_data() -> Vec<DcaInfo> {
+        return vec![dca_order_1_valid(), dca_order_2_valid()];
+    }
+
+    pub fn dca_order_1_valid() -> DcaInfo {
+        let dac_amount = Asset {
             info: AssetInfo::NativeToken {
                 denom: "usdt".to_string(),
             },
             amount: Uint128::from(10u128),
-        }];
-
-        let tip_assets_1 = vec![Asset {
-            info: AssetInfo::NativeToken {
-                denom: "usdt".to_string(),
-            },
-            amount: Uint128::from(5u128),
-        }];
-
-        let target_asset_1 = AssetInfo::Token {
-            contract_addr: Addr::unchecked("XXX"),
         };
 
-        let gas_1 = Asset {
-            info: AssetInfo::NativeToken {
-                denom: "uluna".to_string(),
-            },
-            amount: Uint128::from(100u128),
-        };
-
-        let purchase_schedules_1 = vec![PurchaseSchedule {
-            asset_info: AssetInfo::NativeToken {
-                denom: "usdt".to_string(),
-            },
-            amount: Uint128::from(10u128),
-            interval: 100u64,
-        }];
-
-        let id_1 = "1".to_string();
-        let dca1 = DcaInfo::new(
-            id_1,
-            10u64,
-            10u64,
-            10u64,
-            target_asset_1,
-            0u64,
-            deposit_assets_1,
-            tip_assets_1,
-            gas_1,
-            purchase_schedules_1,
-            None,
-            None,
-        );
-
-        // define DCA order 2
-        let deposit_assets_2 = vec![
-            Asset {
+        let balance = Balance {
+            deposit: Asset {
                 info: AssetInfo::NativeToken {
                     denom: "usdt".to_string(),
                 },
-                amount: Uint128::from(20u128),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: Addr::unchecked("asset0"),
-                },
                 amount: Uint128::from(100u128),
             },
-        ];
-
-        let tip_assets_2 = vec![
-            Asset {
+            spent: Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uluna".to_string(),
+                    denom: "usdt".to_string(),
+                },
+                amount: Uint128::from(0u128),
+            },
+            target: Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("target_1_addr"),
                 },
                 amount: Uint128::from(10u128),
             },
-            Asset {
+            tip: Asset {
                 info: AssetInfo::NativeToken {
                     denom: "usdt".to_string(),
                 },
                 amount: Uint128::from(5u128),
             },
-        ];
-
-        let target_asset_2 = AssetInfo::Token {
-            contract_addr: Addr::unchecked("XXX"),
+            gas: Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::from(5u128),
+            },
+            last_purchase: 0u64,
         };
 
-        let gas_2 = Asset {
-            info: AssetInfo::NativeToken {
-                denom: "uluna".to_string(),
-            },
-            amount: Uint128::from(200u128),
-        };
-
-        let purchase_schedules_2 = vec![PurchaseSchedule {
-            asset_info: AssetInfo::NativeToken {
-                denom: "usdt".to_string(),
-            },
-            amount: Uint128::from(20u128),
-            interval: 200u64,
-        }];
-
-        let id_2 = "2".to_string();
-        let dca2 = DcaInfo::new(
-            id_2,
+        return DcaInfo::new(
+            "order_1".to_string(),
             10u64,
+            50u64,
             10u64,
-            10u64,
-            target_asset_2,
-            0u64,
-            deposit_assets_2,
-            tip_assets_2,
-            gas_2,
-            purchase_schedules_2,
+            dac_amount,
             None,
             None,
+            balance,
         );
+    }
 
-        return vec![dca1, dca2];
+    pub fn dca_order_2_valid() -> DcaInfo {
+        let dac_amount = Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("ibc/usdc"),
+            },
+            amount: Uint128::from(10u128),
+        };
+
+        let balance = Balance {
+            deposit: Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("ibc/usdc"),
+                },
+                amount: Uint128::from(800u128),
+            },
+            spent: Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "usdt".to_string(),
+                },
+                amount: Uint128::from(200u128),
+            },
+            target: Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("target_2_addr"),
+                },
+                amount: Uint128::from(10u128),
+            },
+            tip: Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("tip_2_addr"),
+                },
+                amount: Uint128::from(100u128),
+            },
+            gas: Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::from(5u128),
+            },
+            last_purchase: 0u64,
+        };
+
+        return DcaInfo::new(
+            "order_2".to_string(),
+            10u64,
+            100u64,
+            10u64,
+            dac_amount,
+            None,
+            None,
+            balance,
+        );
     }
 }

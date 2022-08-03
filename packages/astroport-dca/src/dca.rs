@@ -12,68 +12,41 @@ use cosmwasm_std::{Decimal, Uint128};
 pub struct DcaInfo {
     // Unique identifier
     id: String,
-    // the time of the creation of of the dca.
+    // the time of the creation of of the dca order.
     created_at: u64,
     // the time when the dca will start to become active
     pub start_at: u64,
-    /// The last time the `target_asset` was purchased
-    pub last_purchase: u64,
     /// The interval in seconds between DCA purchases
     pub interval: u64,
-    /// The assets to spend each DCA purchase
-    pub deposit_assets: Vec<Asset>,
-    /// The assets the user has deposited for their tips when performing DCA purchases
-    pub tip_assets: Vec<Asset>,
-    /// The asset which the user wants to buy with the DCA order
-    pub target_asset: AssetInfo,
-    /// The amount of gas token (uluna) the user has deposited for their swaps when performing DCA purchases
-    pub gas: Asset,
-    /// The schedules for purchasing the target asset
-    pub purchase_schedules: Vec<PurchaseSchedule>,
+    /// The amount of (deposit) asset to spend at each DCA purchase of the target asset
+    pub dca_amount: Asset,
     /// An override for the maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing
     pub max_hops: Option<u32>,
     /// An override for the maximum amount of spread when performing a swap from `initial_asset` to `target_asset` when DCAing
     pub max_spread: Option<Decimal>,
+    /// The balance of the assets involved in the DCA
+    pub balance: Balance,
 }
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PurchaseSchedule {
-    /// Asset deposited to purchase the target asset
-    pub asset_info: AssetInfo,
-    /// The amount of asset to spend each DCA purchase
-    pub amount: Uint128,
-    /// The interval in seconds between DCA purchases
-    pub interval: u64,
-}
-
 impl DcaInfo {
     pub const fn new(
         id: String,
         created_at: u64,
         start_at: u64,
         interval: u64,
-        target_asset: AssetInfo,
-        last_purchase: u64,
-        deposit_assets: Vec<Asset>,
-        tip_assets: Vec<Asset>,
-        gas: Asset,
-        purchase_schedules: Vec<PurchaseSchedule>,
+        dca_amount: Asset,
         max_hops: Option<u32>,
         max_spread: Option<Decimal>,
+        balance: Balance,
     ) -> Self {
         return DcaInfo {
             id,
             created_at,
             start_at,
             interval,
-            target_asset,
-            last_purchase,
-            deposit_assets,
-            tip_assets,
-            gas,
-            purchase_schedules,
+            dca_amount,
             max_hops,
             max_spread,
+            balance,
         };
     }
 
@@ -83,6 +56,47 @@ impl DcaInfo {
 
     pub fn created_at(&self) -> u64 {
         self.created_at.to_owned()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Balance {
+    /// The available asset in the DCA for purchasing the target asset.
+    /// The balance of this asset will decrease of a dca_amount at each purchase.
+    pub deposit: Asset,
+    /// The deposited asset which have been already spent to purchase the target asset.
+    /// The balance of this asset will increase of a dca_amount at each purchase.
+    /// Note that at each purchase: deposit + spent  = constant
+    pub spent: Asset,
+    /// The asset which the user wants to buy with the DCA order.
+    /// The balance of this asset will increase at each purchase.
+    pub target: Asset,
+    /// The tip amount the user has deposited for their tips when performing DCA purchases.
+    /// The balance of this asset will decrease at each purchase.
+    pub tip: Asset,
+    /// The amount of gas token (uluna) the user has deposited for their swaps when performing DCA purchases.
+    /// The balance of this asset will decrease at each purchase.
+    pub gas: Asset,
+    /// The last time the `target_asset` was purchased.
+    /// This field will be updated at each purchase.
+    pub last_purchase: u64,
+}
+
+impl Balance {
+    pub fn set_deposit(&mut self, deposit: Asset) {
+        self.deposit = deposit;
+    }
+
+    pub fn set_target(&mut self, target: Asset) {
+        self.target = target;
+    }
+
+    pub fn set_tip(&mut self, tip: Asset) {
+        self.tip = tip;
+    }
+
+    pub fn set_gas(&mut self, gas: Asset) {
+        self.gas = gas;
     }
 }
 
@@ -127,13 +141,13 @@ pub enum ExecuteMsg {
     CreateDcaOrder {
         start_at: u64,
         interval: u64,
-        deposit_assets: Vec<Asset>,
-        tip_assets: Vec<Asset>,
-        target_asset: AssetInfo,
-        gas: Asset,
-        purchase_schedules: Vec<PurchaseSchedule>,
+        dca_amount: Asset,
         max_hops: Option<u32>,
         max_spread: Option<Decimal>,
+        deposit: Asset,
+        tip: Asset,
+        gas: Asset,
+        target_info: AssetInfo,
     },
     /// Modifies an existing DCA order, allowing the user to change certain parameters
     ModifyDcaOrder {
@@ -145,10 +159,13 @@ pub enum ExecuteMsg {
         should_reset_purchase_time: bool,
     },
     /// Performs a DCA purchase for a specified user given a hop route
+    /*
     PerformDcaPurchase {
         user: String,
         hops: Vec<SwapOperation>,
     },
+    */
+
     /// Updates the configuration of the contract
     UpdateConfig {
         /// The new maximum amount of hops to perform from `initial_asset` to `target_asset` when
@@ -161,6 +178,8 @@ pub enum ExecuteMsg {
         /// The new maximum spread for DCA purchases
         max_spread: Option<Decimal>,
     },
+
+    /*
     /// Update the configuration for a user
     UpdateUserConfig {
         /// The maximum amount of hops per swap
@@ -168,6 +187,7 @@ pub enum ExecuteMsg {
         /// The maximum spread per token when performing DCA purchases
         max_spread: Option<Decimal>,
     },
+    */
     /// Withdraws a users bot tip from the contract.
     Withdraw {
         tip: Uint128,
@@ -190,8 +210,8 @@ pub enum QueryMsg {
     UserDcaOrders { user: String },
     /// Returns information about the contract configuration in a [`Config`] object.
     Config {},
-    /// Returns the users current configuration as a [`UserConfig`] object.
-    UserConfig { user: String },
+    // Returns the users current configuration as a [`UserConfig`] object.
+    //  UserConfig { user: String },
 }
 
 /// This structure describes a migration message.
