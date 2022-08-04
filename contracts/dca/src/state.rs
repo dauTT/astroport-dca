@@ -48,31 +48,11 @@ impl WhitelistTokens {
     }
 }
 
-/*
-/// Stores the users custom configuration
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct UserConfig {
-    /// An override for the maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing
-    pub max_hops: Option<u32>,
-    /// An override for the maximum amount of spread when performing a swap from `initial_asset` to `target_asset` when DCAing
-    pub max_spread: Option<Decimal>,
-    /// The amount of uusd the user has deposited for their tips when performing DCA purchases
-    pub tip_balance: Uint128,
-}
-
-impl Default for UserConfig {
-    fn default() -> Self {
-        UserConfig {
-            max_hops: None,
-            max_spread: None,
-            tip_balance: Uint128::zero(),
-        }
-    }
-}
-*/
-
 /// The contract configuration
 pub const CONFIG: Item<Config> = Item::new("config");
 /// The DCA orders for a user.
-/// The key is the user address and the value is the corresponding list of DCA orders
-pub const USER_DCA_ORDERS: Map<&Addr, Vec<DcaInfo>> = Map::new("USER_DCA_ORDERS");
+/// The key is the user address and the value is the corresponding list of DCA order id.
+pub const USER_DCA_ORDERS: Map<&Addr, Vec<String>> = Map::new("USER_DCA_ORDERS");
+
+// The DCA orders. The key is the DCA order id and the value is the information of DCA
+pub const DCA_ORDERS: Map<String, DcaInfo> = Map::new("DCA_ORDERS");

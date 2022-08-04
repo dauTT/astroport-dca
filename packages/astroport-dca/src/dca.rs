@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use astroport::{
     asset::{Asset, AssetInfo},
     router::SwapOperation,
@@ -5,13 +7,15 @@ use astroport::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 
 /// Describes information about a DCA order
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct DcaInfo {
     // Unique identifier
     id: String,
+    // The address of the user who has created the dca order.
+    created_by: Addr,
     // the time of the creation of of the dca order.
     created_at: u64,
     // the time when the dca will start to become active
@@ -30,6 +34,7 @@ pub struct DcaInfo {
 impl DcaInfo {
     pub const fn new(
         id: String,
+        created_by: Addr,
         created_at: u64,
         start_at: u64,
         interval: u64,
@@ -40,6 +45,7 @@ impl DcaInfo {
     ) -> Self {
         return DcaInfo {
             id,
+            created_by,
             created_at,
             start_at,
             interval,
@@ -52,6 +58,10 @@ impl DcaInfo {
 
     pub fn id(&self) -> String {
         self.id.to_owned()
+    }
+
+    pub fn created_by(&self) -> Addr {
+        self.created_by.to_owned()
     }
 
     pub fn created_at(&self) -> u64 {
@@ -80,24 +90,6 @@ pub struct Balance {
     /// The last time the `target_asset` was purchased.
     /// This field will be updated at each purchase.
     pub last_purchase: u64,
-}
-
-impl Balance {
-    pub fn set_deposit(&mut self, deposit: Asset) {
-        self.deposit = deposit;
-    }
-
-    pub fn set_target(&mut self, target: Asset) {
-        self.target = target;
-    }
-
-    pub fn set_tip(&mut self, tip: Asset) {
-        self.tip = tip;
-    }
-
-    pub fn set_gas(&mut self, gas: Asset) {
-        self.gas = gas;
-    }
 }
 
 /// Describes the parameters used for creating a contract
@@ -159,12 +151,10 @@ pub enum ExecuteMsg {
         should_reset_purchase_time: bool,
     },
     /// Performs a DCA purchase for a specified user given a hop route
-    /*
     PerformDcaPurchase {
-        user: String,
+        dca_order_id: String,
         hops: Vec<SwapOperation>,
     },
-    */
 
     /// Updates the configuration of the contract
     UpdateConfig {

@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 
 use crate::error::ContractError;
-use crate::state::{CONFIG, USER_DCA_ORDERS};
+use crate::state::{CONFIG, DCA_ORDERS};
 
 /// ## Description
 /// Adds a tip to the contract for a users DCA purchases.
@@ -56,26 +56,16 @@ pub fn add_bot_tip(
         }
     }
 
-    USER_DCA_ORDERS.update(
+    DCA_ORDERS.update(
         deps.storage,
-        &info.sender,
-        |orders| -> Result<Vec<DcaInfo>, ContractError> {
-            let mut orders = orders.ok_or(ContractError::NonexistentDca {})?;
-            for dca_info in &mut orders {
-                if dca_info.id() == dca_info_id {
-                    dca_info.balance.tip.amount = dca_info
-                        .balance
-                        .tip
-                        .amount
-                        .checked_add(asset.amount)
-                        .unwrap();
-                    return Ok(orders);
-                }
-            }
+        dca_info_id.clone(),
+        |order| -> Result<DcaInfo, ContractError> {
+            let order = &mut order.ok_or(ContractError::NonexistentDca {
+                msg: format! {"invalid dca order id: {}", dca_info_id},
+            })?;
 
-            return Err(ContractError::InvalidInput {
-                msg: format!("Invalid DCA order id: {:?}", dca_info_id),
-            });
+            order.balance.tip.amount = order.balance.tip.amount.checked_add(asset.amount).unwrap();
+            return Ok(order.clone());
         },
     )?;
 
@@ -88,7 +78,7 @@ pub fn add_bot_tip(
 
 #[cfg(test)]
 mod tests {
-    use crate::state::USER_DCA_ORDERS;
+    use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
     use cosmwasm_std::{
@@ -116,23 +106,27 @@ mod tests {
             },
             amount: Uint128::from(50u128),
         };
+
+        let user_orders = USER_DCA_ORDERS
+            .load(deps.as_ref().storage, &info.sender)
+            .unwrap();
+
+        assert_eq!(user_orders.len(), 2);
+        let dca_info_id = "order_2";
+
         // build msg
         // increment the uluna tip asset of 100 uluna of dca order 2
         let msg = ExecuteMsg::AddBotTip {
-            dca_info_id: "order_2".to_string(),
+            dca_info_id: dca_info_id.to_string(),
             asset: tip_asset.clone(),
         };
 
         // execute the msg
         let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-        let dac_orders = USER_DCA_ORDERS
-            .load(deps.as_ref().storage, &info.sender)
-            .unwrap_or_default();
-
-        assert_eq!(2, dac_orders.len());
-
-        let order_2 = dac_orders.iter().find(|d| d.id() == "order_2").unwrap();
+        let order = DCA_ORDERS
+            .load(deps.as_ref().storage, dca_info_id.to_string())
+            .unwrap();
 
         let expected_balance_tip = Asset {
             info: AssetInfo::Token {
@@ -140,7 +134,7 @@ mod tests {
             },
             amount: Uint128::from(150u128),
         };
-        assert_eq!(order_2.balance.tip, expected_balance_tip);
+        assert_eq!(order.balance.tip, expected_balance_tip);
 
         let expected_response: Response<Empty> = Response::new().add_attributes(vec![
             attr("action", "add_bot_tip"),
@@ -155,7 +149,7 @@ mod tests {
 
 #[cfg(test)]
 pub mod test_util {
-    use crate::state::{Config, WhitelistTokens, CONFIG, USER_DCA_ORDERS};
+    use crate::state::{Config, WhitelistTokens, CONFIG, DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
     use astroport::pair::DEFAULT_SLIPPAGE;
     use astroport_dca::dca::{Balance, DcaInfo};
@@ -171,13 +165,21 @@ pub mod test_util {
 
         // save CONFIG to storage
         let mut store = MockStorage::new();
-        _ = CONFIG.save(&mut store, &config);
+        CONFIG.save(&mut store, &config);
 
         // save USER_DCA_ORDERS to storage
-        let user_dca_orders = mock_user_dca_orders_valid_data();
+        // save USER_DCA_ORDERS to storage
+        let dca_orders = mock_dca_orders_valid_data();
         let funds = [coin(15, "usdt"), coin(100, "uluna")];
         let info = mock_info("creator", &funds);
-        _ = USER_DCA_ORDERS.save(&mut store, &info.sender, &user_dca_orders);
+
+        USER_DCA_ORDERS.save(
+            &mut store,
+            &info.sender,
+            &vec![dca_orders[0].id(), dca_orders[1].id()],
+        );
+        DCA_ORDERS.save(&mut store, dca_orders[0].id(), &dca_orders[0]);
+        DCA_ORDERS.save(&mut store, dca_orders[1].id(), &dca_orders[1]);
 
         return store;
     }
@@ -219,7 +221,7 @@ pub mod test_util {
         };
     }
 
-    pub fn mock_user_dca_orders_valid_data() -> Vec<DcaInfo> {
+    pub fn mock_dca_orders_valid_data() -> Vec<DcaInfo> {
         return vec![dca_order_1_valid(), dca_order_2_valid()];
     }
 
@@ -267,6 +269,7 @@ pub mod test_util {
 
         return DcaInfo::new(
             "order_1".to_string(),
+            Addr::unchecked("user 1"),
             10u64,
             50u64,
             10u64,
@@ -321,6 +324,7 @@ pub mod test_util {
 
         return DcaInfo::new(
             "order_2".to_string(),
+            Addr::unchecked("user 2"),
             10u64,
             100u64,
             10u64,

@@ -1,6 +1,8 @@
 use crate::state::{Config, WhitelistTokens, CONFIG};
 use crate::{
-    error::ContractError, get_token_allowance::get_token_allowance, state::USER_DCA_ORDERS,
+    error::ContractError,
+    get_token_allowance::get_token_allowance,
+    state::{DCA_ORDERS, USER_DCA_ORDERS},
 };
 use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
 use astroport_dca::dca::{Balance, DcaInfo};
@@ -51,7 +53,7 @@ pub fn create_dca_order(
     let config = CONFIG.load(deps.storage)?;
     let whitelist_tokens = config.whitelist_tokens.clone();
 
-    let mut orders = USER_DCA_ORDERS
+    let mut user_dca_orders = USER_DCA_ORDERS
         .may_load(deps.storage, &info.sender)?
         .unwrap_or_default();
 
@@ -90,8 +92,9 @@ pub fn create_dca_order(
         last_purchase: 0u64,
     };
     // store dca order
-    orders.push(DcaInfo::new(
+    let dca = DcaInfo::new(
         id.clone(),
+        info.sender.clone(),
         env.block.time.seconds(),
         start_at,
         interval,
@@ -99,9 +102,11 @@ pub fn create_dca_order(
         max_hops,
         max_spread,
         balance.clone(),
-    ));
+    );
+    user_dca_orders.push(id.clone());
 
-    USER_DCA_ORDERS.save(deps.storage, &info.sender, &orders)?;
+    DCA_ORDERS.save(deps.storage, id.clone(), &dca)?;
+    USER_DCA_ORDERS.save(deps.storage, &info.sender, &user_dca_orders)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "create_dca_order"),
@@ -242,7 +247,7 @@ fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
 
 #[cfg(test)]
 mod tests {
-    use crate::state::USER_DCA_ORDERS;
+    use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::{Balance, ExecuteMsg};
 
@@ -309,39 +314,48 @@ mod tests {
         };
 
         // Check there are 2 DCA orders before executing the msg
-        let mut orders = USER_DCA_ORDERS
+        let mut user_orders = USER_DCA_ORDERS
             .load(deps.as_ref().storage, &info.sender)
-            .unwrap_or_default();
+            .unwrap();
 
-        assert_eq!(2, orders.len());
+        assert_eq!(user_orders.len(), 2);
+
+        /*
+                let mut orders = USER_DCA_ORDERS
+                    .load(deps.as_ref().storage, &info.sender)
+                    .unwrap_or_default();
+        */
 
         // Execute the msg
         let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // Check there are 3 DCA orders after executing the msg
-        orders = USER_DCA_ORDERS
+        user_orders = USER_DCA_ORDERS
             .load(deps.as_ref().storage, &info.sender)
-            .unwrap_or_default();
+            .unwrap();
 
-        assert_eq!(3, orders.len());
+        assert_eq!(user_orders.len(), 3);
+
+        let order_id = user_orders[2].clone();
+        let order = DCA_ORDERS
+            .load(deps.as_ref().storage, order_id.clone())
+            .unwrap();
 
         // Check expected and actual response are the same
+
         let expected_response = Response::new().add_attributes(vec![
             attr("action", "create_dca_order"),
-            attr("id", orders[2].id()),
-            attr("created_at", orders[2].created_at().to_string()),
-            attr("start_at", orders[2].start_at.to_string()),
-            attr("interval", orders[2].interval.to_string()),
-            attr("dca_amount", orders[2].dca_amount.to_string()),
-            attr("max_hops", format!("{:?}", orders[2].max_hops)),
-            attr("max_spread", format!("{:?}", orders[2].max_spread)),
-            attr("deposit", format!("{:?}", orders[2].balance.deposit)),
-            attr("tip", format!("{:?}", orders[2].balance.tip)),
-            attr("gas", format!("{:?}", orders[2].balance.gas)),
-            attr(
-                "target_info",
-                format!("{:?}", orders[2].balance.target.info),
-            ),
+            attr("id", order.id()),
+            attr("created_at", order.created_at().to_string()),
+            attr("start_at", order.start_at.to_string()),
+            attr("interval", order.interval.to_string()),
+            attr("dca_amount", order.dca_amount.to_string()),
+            attr("max_hops", format!("{:?}", order.max_hops)),
+            attr("max_spread", format!("{:?}", order.max_spread)),
+            attr("deposit", format!("{:?}", order.balance.deposit)),
+            attr("tip", format!("{:?}", order.balance.tip)),
+            attr("gas", format!("{:?}", order.balance.gas)),
+            attr("target_info", format!("{:?}", order.balance.target.info)),
         ]);
 
         assert_eq!(actual_response, expected_response);
