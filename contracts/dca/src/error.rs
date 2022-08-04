@@ -27,10 +27,13 @@ pub enum ContractError {
     AlreadyDeposited {},
 
     #[error("DCA amount is not equal to allowance set by token")]
-    InvalidTokenDeposit {},
+    InvalidTokenDeposit { token: String },
 
     #[error("Invalid hop route through {token} due to token whitelist")]
     InvalidHopRoute { token: String },
+
+    #[error("Invalid input")]
+    InvalidInput { msg: String },
 
     #[error("The user does not have the specified initial_asset to DCA")]
     NonexistentDca {},
@@ -50,6 +53,9 @@ pub enum ContractError {
     #[error("Hop route does not end up at target_asset")]
     TargetAssetAssertion {},
 
+    #[error("Hop route does not start with the deposit asset")]
+    StartAssetAssertion {},
+
     #[error("Asset balance is less than DCA purchase amount")]
     InsufficientBalance {},
 
@@ -61,4 +67,7 @@ pub enum ContractError {
 
     #[error("Initial asset deposited is not divisible by the DCA amount")]
     IndivisibleDeposit {},
+
+    #[error("Unable to update the DCA balance")]
+    BalanceUpdateError { msg: String },
 }

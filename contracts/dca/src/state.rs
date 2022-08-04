@@ -11,6 +11,16 @@ use astroport_dca::dca::DcaInfo;
 /// Stores the main dca module parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// The maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing if the user does not specify
+    pub max_hops: u32,
+    /// The maximum amount of spread when performing a swap from `initial_asset` to `target_asset` when DCAing if the user does not specify
+    pub max_spread: Decimal,
+    /// The fee a user must pay per hop performed in a DCA purchase when DCAing if the user does not specify.
+    /// We assume the fee pay to the bot is a stablecoin denominated token in the (tip) Whitelist
+    pub per_hop_fee: Uint128,
+    // the denomination of the native gas asset of chain.
+    // In terra is uluna, in Juno is ujuno and so on..
+    pub gas_info: AssetInfo,
     // The list of tokens which are allowed in the DCA contracts.
     pub whitelist_tokens: WhitelistTokens,
     /// The address of the Astroport factory contract
@@ -24,7 +34,7 @@ pub struct WhitelistTokens {
     // Token which can be by the user to deposit in the DCA contract
     pub deposit: Vec<AssetInfo>,
     // Token which can be used by the user to reward a bot for
-    // executing DCA orders.
+    // executing DCA orders. We assume this token are stablecoin like USDT or USDC
     pub tip: Vec<AssetInfo>,
 }
 
@@ -38,6 +48,7 @@ impl WhitelistTokens {
     }
 }
 
+/*
 /// Stores the users custom configuration
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct UserConfig {
@@ -58,6 +69,7 @@ impl Default for UserConfig {
         }
     }
 }
+*/
 
 /// The contract configuration
 pub const CONFIG: Item<Config> = Item::new("config");
