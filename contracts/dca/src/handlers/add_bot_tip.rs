@@ -132,7 +132,7 @@ mod tests {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("tip_2_addr"),
             },
-            amount: Uint128::from(150u128),
+            amount: Uint128::from(1050u128),
         };
         assert_eq!(order.balance.tip, expected_balance_tip);
 
@@ -311,7 +311,7 @@ pub mod test_util {
                 info: AssetInfo::Token {
                     contract_addr: Addr::unchecked("tip_2_addr"),
                 },
-                amount: Uint128::from(100u128),
+                amount: Uint128::from(1000u128),
             },
             gas: Asset {
                 info: AssetInfo::NativeToken {

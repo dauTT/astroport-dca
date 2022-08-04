@@ -188,11 +188,10 @@ pub fn execute(
         }
         ExecuteMsg::Withdraw { tip: amount } => withdraw(deps, info, amount),
 
-        /*
-        ExecuteMsg::PerformDcaPurchase { user, hops } => {
-            perform_dca_purchase(deps, env, info, user, hops)
+        ExecuteMsg::PerformDcaPurchase { dca_order_id, hops } => {
+            perform_dca_purchase(deps, env, info, dca_order_id, hops)
         }
-        */
+
         ExecuteMsg::CancelDcaOrder { initial_asset } => cancel_dca_order(deps, info, initial_asset),
         ExecuteMsg::ModifyDcaOrder {
             old_initial_asset,

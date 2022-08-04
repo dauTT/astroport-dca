@@ -1,17 +1,17 @@
 use astroport::{
-    asset::{addr_validate_to_lower, AssetInfo},
+    asset::AssetInfo,
     router::{ExecuteMsg as RouterExecuteMsg, SwapOperation},
 };
 use astroport_dca::dca::DcaInfo;
 use cosmwasm_std::{
-    attr, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response,
-    StdError, Uint128, WasmMsg,
+    attr, to_binary, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 
 use crate::{
     error::ContractError,
-    state::{Config, CONFIG, USER_DCA_ORDERS},
+    state::{Config, CONFIG, DCA_ORDERS},
 };
 
 /// ## Description
@@ -35,104 +35,69 @@ pub fn perform_dca_purchase(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    user: String,
-    dca_info_id: String,
+    dca_order_id: String,
     hops: Vec<SwapOperation>,
 ) -> Result<Response, ContractError> {
     let contract_config = CONFIG.load(deps.storage)?;
-    // validate user address
-    let user_address = addr_validate_to_lower(deps.api, &user)?;
-    // retrieve configs
-    let user_dca_orders = USER_DCA_ORDERS
-        .may_load(deps.storage, &user_address)?
-        .unwrap_or_default();
+    let order = DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.to_string())?;
     let hops_len = hops.len() as u32;
-
     let tip_cost = contract_config
         .per_hop_fee
         .checked_mul(Uint128::from(hops_len))?;
 
-    sanity_checks(
-        &env,
-        &contract_config,
-        &user_dca_orders,
-        dca_info_id.clone(),
-        &user_address,
-        &hops,
-        tip_cost.clone(),
-    )?;
+    sanity_checks(&env, &contract_config, &order, &hops, tip_cost.clone())?;
 
     // store messages to send in response
     let mut messages: Vec<CosmosMsg> = Vec::new();
 
-    // load user dca orders and update the relevant one
-    USER_DCA_ORDERS.update(
+    // load dca order and update it
+    DCA_ORDERS.update(
         deps.storage,
-        &user_address,
-        |orders| -> Result<Vec<DcaInfo>, ContractError> {
-            let mut orders = orders.ok_or(ContractError::NonexistentDca {})?;
+        dca_order_id.clone(),
+        |order| -> Result<DcaInfo, ContractError> {
+            let order = &mut order.unwrap();
 
-            for dca in &mut orders {
-                if dca.id() == dca_info_id {
-                    let order = dca;
-                    // retrieve max_spread from user config, or default to contract set max_spread
-                    let max_spread = order.max_spread.unwrap_or(contract_config.max_spread);
+            // retrieve max_spread from user config, or default to contract set max_spread
+            let max_spread = order.max_spread.unwrap_or(contract_config.max_spread);
 
-                    messages = build_messages(
-                        &info,
-                        &user_address,
-                        &contract_config,
-                        order,
-                        hops.clone(),
-                        max_spread,
-                        tip_cost.clone(),
-                    )?;
+            messages = build_messages(
+                &info,
+                &contract_config,
+                order,
+                hops.clone(),
+                max_spread,
+                tip_cost.clone(),
+            )?;
 
-                    update_balance(order, &env, tip_cost.clone())?;
+            update_balance(order, &env, tip_cost.clone())?;
 
-                    return Ok(orders);
-                }
-            }
-
-            Err(ContractError::InvalidInput {
-                msg: format!(
-                    "The user does not have and DCA order with id = {:?}",
-                    dca_info_id
-                ),
-            })
+            return Ok(order.clone());
         },
     )?;
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "perform_dca_purchase"),
-        attr("tip_cost", tip_cost),
+        attr("dca_order_id", dca_order_id),
+        attr("hops", format!("{:?}", hops)),
     ]))
 }
 
 fn sanity_checks(
     env: &Env,
     contract_config: &Config,
-    user_dca_orders: &Vec<DcaInfo>,
-    dca_info_id: String,
-    user: &Addr,
+    dca_order: &DcaInfo,
     hops: &Vec<SwapOperation>,
     tip_cost: Uint128,
 ) -> Result<(), ContractError> {
-    if user_dca_orders.is_empty() {
-        return Err(ContractError::InvalidInput {
-            msg: format!("No DCA orders associated with the user address: {:}", &user),
-        });
+    // check balance deposit > dca_amount.amount
+    if dca_order
+        .balance
+        .deposit
+        .amount
+        .lt(&dca_order.dca_amount.amount)
+    {
+        return Err(ContractError::InsufficientBalance {});
     }
-
-    let dca_order = user_dca_orders
-        .iter()
-        .find(|order| order.id() == dca_info_id)
-        .ok_or(ContractError::InvalidInput {
-            msg: format!(
-                "The user does not have and DCA order with id = {:?}",
-                dca_info_id
-            ),
-        })?;
 
     // validate hops is at least one
     if hops.is_empty() {
@@ -199,6 +164,10 @@ fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(
             msg: "Unable to add dca_amount to the spent amount".to_string(),
         })?;
 
+    // todo: update order.balance.target
+    // This will required to be able to read the response msg from the swap operation
+    // Most likely it is possible using SubMsg
+
     order.balance.tip.amount = order
         .balance
         .tip
@@ -213,7 +182,6 @@ fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(
 
 fn build_messages(
     info: &MessageInfo,
-    user_address: &Addr,
     contract_config: &Config,
     order: &mut DcaInfo,
     hops: Vec<SwapOperation>,
@@ -221,15 +189,16 @@ fn build_messages(
     tip_cost: Uint128,
 ) -> Result<Vec<CosmosMsg>, ContractError> {
     let mut messages: Vec<CosmosMsg> = Vec::new();
+    let user_address = order.created_by();
     // add funds and router message to response
     if let AssetInfo::Token { contract_addr } = &order.balance.deposit.info {
-        // send a TransferFrom request to the token to the router
+        // send a Transfer request to the token to the router
         messages.push(
             WasmMsg::Execute {
                 contract_addr: contract_addr.to_string(),
                 funds: vec![],
-                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: user_address.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    // owner: user_address.to_string(),
                     recipient: contract_config.router_addr.to_string(),
                     amount: order.dca_amount.amount,
                 })?,
@@ -255,7 +224,7 @@ fn build_messages(
             msg: to_binary(&RouterExecuteMsg::ExecuteSwapOperations {
                 operations: hops,
                 minimum_receive: None,
-                to: Some(user_address.clone()),
+                to: Some(user_address.clone()), // todo: send the target asset about back to the DCA contract rather than to the user. and update balance.target accordingly.
                 max_spread: Some(max_spread),
             })?,
         }
@@ -274,8 +243,90 @@ fn build_messages(
             }
             .into(),
         ),
-        AssetInfo::Token { contract_addr } => todo!(),
+        AssetInfo::Token { contract_addr } => messages.push(
+            WasmMsg::Execute {
+                contract_addr: contract_addr.to_string(),
+                funds: vec![],
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: info.sender.to_string(),
+                    amount: tip_cost,
+                })?,
+            }
+            .into(),
+        ),
     }
 
     Ok(messages)
+}
+
+mod tests {
+    use astroport::{asset::AssetInfo, router::SwapOperation};
+    use astroport_dca::dca::ExecuteMsg;
+    use cosmwasm_std::{
+        attr,
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr, Coin, Empty, Response,
+    };
+
+    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
+    use crate::contract::execute;
+
+    #[test]
+    fn test_perform_dca_purchase_pass() {
+        // setup test
+        let mut deps = mock_dependencies();
+        deps.storage = mock_storage_valid_data();
+
+        let funds: Vec<Coin> = vec![]; //[coin(100, "ibc/usdx")];
+        let info = mock_info("creator", &funds);
+
+        let dca_info_id = "order_2".to_string();
+
+        // ibc/usdc -> asset0 --> target_2_addr
+        let hops = vec![
+            SwapOperation::AstroSwap {
+                offer_asset_info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("ibc/usdc"),
+                },
+                ask_asset_info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("asset0"),
+                },
+            },
+            SwapOperation::AstroSwap {
+                offer_asset_info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("asset0"),
+                },
+                ask_asset_info: AssetInfo::NativeToken {
+                    denom: ("asset1".to_string()),
+                },
+            },
+            SwapOperation::AstroSwap {
+                offer_asset_info: AssetInfo::NativeToken {
+                    denom: ("asset1".to_string()),
+                },
+                ask_asset_info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("target_2_addr"),
+                },
+            },
+        ];
+
+        // build msg
+        // increment the uluna tip asset of 100 uluna of dca order 2
+        let msg = ExecuteMsg::PerformDcaPurchase {
+            dca_order_id: dca_info_id.clone(),
+            hops: hops.clone(),
+        };
+
+        // execute the msg
+        let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+        let expected_response: Response<Empty> = Response::new().add_attributes(vec![
+            attr("action", "perform_dca_purchase"),
+            attr("dca_order_id", "order_2"),
+            attr("hops", format!("{:?}", hops)),
+        ]);
+
+        assert_eq!(actual_response.attributes, expected_response.attributes);
+        //   assert_eq!(format!("{:?}", actual_response.messages), "[SubMsg { id: 0, msg: Wasm(Execute { contract_addr: \"tip_2_addr\", msg: Binary(7b227472616e736665725f66726f6d223a7b226f776e6572223a2263726561746f72222c22726563697069656e74223a22636f736d6f7332636f6e7472616374222c22616d6f756e74223a223530227d7d), funds: [] }), gas_limit: None, reply_on: Never }]")
+    }
 }

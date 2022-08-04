@@ -249,15 +249,13 @@ fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
 mod tests {
     use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
-    use astroport_dca::dca::{Balance, ExecuteMsg};
+    use astroport_dca::dca::ExecuteMsg;
 
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Response, Uint128,
     };
-
-    // use super::super::add_bot_tip::test_util::mock_config;
 
     use super::super::add_bot_tip::test_util::mock_storage_valid_data;
     use crate::contract::execute;
