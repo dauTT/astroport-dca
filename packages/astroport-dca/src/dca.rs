@@ -203,10 +203,11 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Returns information about the users current active DCA orders in a [`Vec<DcaInfo>`] object.
     UserDcaOrders { user: String },
+
+    /// Returns information about DCA orders in a [`DcaInfo`]object.
+    DcaOrders { id: String },
     /// Returns information about the contract configuration in a [`Config`] object.
     Config {},
-    // Returns the users current configuration as a [`UserConfig`] object.
-    //  UserConfig { user: String },
 }
 
 /// This structure describes a migration message.

@@ -5,7 +5,7 @@ use crate::handlers::{
     add_bot_tip, cancel_dca_order, create_dca_order, deposit, modify_dca_order,
     perform_dca_purchase, update_config, withdraw, ModifyDcaOrderParameters,
 };
-use crate::queries::{get_config, get_user_dca_orders};
+use crate::queries::{get_config, get_dca_orders, get_user_dca_orders};
 use crate::state::{Config, CONFIG};
 
 use astroport::asset::{addr_validate_to_lower, Asset};
@@ -236,6 +236,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&get_config(deps)?),
         //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
-        QueryMsg::UserDcaOrders { user } => to_binary(&get_user_dca_orders(deps, env, user)?),
+        QueryMsg::UserDcaOrders { user } => to_binary(&get_user_dca_orders(deps, user)?),
+        //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
+        QueryMsg::DcaOrders { id } => to_binary(&get_dca_orders(deps, id)?),
     }
 }
