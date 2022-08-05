@@ -115,19 +115,43 @@ pub fn find_asset_info(asset_type: DcaAssetType, order: DcaInfo) -> AssetInfo {
 /// Describes the parameters used for creating a contract
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
+    /// contract address that used for controls settings
+    pub owner: String,
     /// The maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing if
     /// the user does not specify a custom max hop amount
     pub max_hops: u32,
     /// The fee a user must pay per hop performed in a DCA purchase
     pub per_hop_fee: Uint128,
+    // the denomination of the native gas asset of chain.
+    // In terra is uluna, in Juno is ujuno and so on..
+    pub gas_info: AssetInfo,
     /// The whitelisted tokens that can be used in a DCA hop route
-    pub whitelisted_tokens: Vec<AssetInfo>,
+    pub whitelisted_tokens: WhitelistedTokens,
     /// The maximum amount of spread
     pub max_spread: String,
     /// The address of the Astroport factory contract
     pub factory_addr: String,
     /// The address of the Astroport router contract
     pub router_addr: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct WhitelistedTokens {
+    // Token which can be by the user to deposit in the DCA contract
+    pub deposit: Vec<AssetInfo>,
+    // Token which can be used by the user to reward a bot for
+    // executing DCA orders. We assume this token are stablecoin like USDT or USDC
+    pub tip: Vec<AssetInfo>,
+}
+
+impl WhitelistedTokens {
+    pub fn is_deposit_asset(&self, asset: &AssetInfo) -> bool {
+        self.deposit.contains(asset)
+    }
+
+    pub fn is_tip_asset(&self, asset: &AssetInfo) -> bool {
+        self.tip.contains(asset)
+    }
 }
 
 /// This structure describes the execute messages available in the contract

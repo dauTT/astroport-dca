@@ -105,12 +105,10 @@ pub fn try_add(
 
 #[cfg(test)]
 mod tests {
-    use astroport::asset::{Asset, AssetInfo};
-    use astroport_dca::dca::ExecuteMsg;
-
     use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::{contract::execute, state::DCA_ORDERS};
-    use astroport_dca::dca::DcaAssetType;
+    use astroport::asset::{Asset, AssetInfo};
+    use astroport_dca::dca::{DcaAssetType, ExecuteMsg};
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
@@ -324,10 +322,10 @@ mod tests {
 
 #[cfg(test)]
 pub mod test_util {
-    use crate::state::{Config, WhitelistTokens, CONFIG, DCA_ORDERS, USER_DCA_ORDERS};
+    use crate::state::{Config, CONFIG, DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
     use astroport::pair::DEFAULT_SLIPPAGE;
-    use astroport_dca::dca::{Balance, DcaInfo};
+    use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
     use cosmwasm_std::{
         coin,
         testing::{mock_info, MockStorage},
@@ -368,7 +366,7 @@ pub mod test_util {
             gas_info: AssetInfo::NativeToken {
                 denom: ULUNA_DENOM.to_string(),
             },
-            whitelist_tokens: WhitelistTokens {
+            whitelisted_tokens: WhitelistedTokens {
                 deposit: vec![
                     AssetInfo::NativeToken {
                         denom: "usdt".to_string(),

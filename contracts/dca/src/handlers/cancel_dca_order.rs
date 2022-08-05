@@ -110,12 +110,11 @@ fn build_refund_messages(
 #[cfg(test)]
 mod tests {
     use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
-    use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Empty, Response, Uint128,
+        Empty, Response,
     };
 
     use super::super::deposit::test_util::mock_storage_valid_data;

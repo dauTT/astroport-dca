@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::error::ContractError;
 use crate::handlers::{
     cancel_dca_order, create_dca_order, deposit, modify_dca_order, perform_dca_purchase,
@@ -7,14 +5,14 @@ use crate::handlers::{
 };
 use crate::queries::{get_config, get_dca_orders, get_user_dca_orders};
 use crate::state::{Config, CONFIG};
-
-use astroport::asset::{addr_validate_to_lower, Asset};
-use cosmwasm_std::{
-    entry_point, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-};
-
+use astroport::asset::addr_validate_to_lower;
 use astroport_dca::dca::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use cosmwasm_std::{
+    entry_point, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult,
+};
 use cw2::set_contract_version;
+use std::str::FromStr;
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "astroport-dca";
@@ -42,6 +40,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    let owner = addr_validate_to_lower(deps.api, &msg.owner)?;
     // get max spread in decimal form
     let max_spread = Decimal::from_str(&msg.max_spread)?;
 
@@ -51,19 +50,18 @@ pub fn instantiate(
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    /*
     let config = Config {
+        owner,
         max_hops: msg.max_hops,
+        max_spread,
+        gas_info: msg.gas_info,
         per_hop_fee: msg.per_hop_fee,
         whitelisted_tokens: msg.whitelisted_tokens,
-        max_spread,
         factory_addr,
         router_addr,
     };
 
     CONFIG.save(deps.storage, &config)?;
-
-    */
 
     Ok(Response::new())
 }

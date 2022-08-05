@@ -1,4 +1,4 @@
-use astroport::{asset::AssetInfo, querier::query_factory_config};
+use astroport::asset::AssetInfo;
 use cosmwasm_std::{attr, Addr, Decimal, DepsMut, MessageInfo, Response, StdError, Uint128};
 
 use crate::{error::ContractError, state::CONFIG};
@@ -56,11 +56,11 @@ pub fn update_config(
         }
 
         if let Some(new_whitelisted_tokens_deposit) = whitelisted_tokens_deposit {
-            config.whitelist_tokens.deposit = new_whitelisted_tokens_deposit;
+            config.whitelisted_tokens.deposit = new_whitelisted_tokens_deposit;
         }
 
         if let Some(new_whitelisted_tokens_tip) = whitelisted_tokens_tip {
-            config.whitelist_tokens.tip = new_whitelisted_tokens_tip;
+            config.whitelisted_tokens.tip = new_whitelisted_tokens_tip;
         }
 
         if let Some(new_max_spread) = max_spread {
@@ -86,7 +86,7 @@ mod tests {
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Empty, Response,
+        Empty, Response,
     };
 
     use super::super::deposit::test_util::mock_storage_valid_data;
@@ -127,7 +127,7 @@ mod tests {
         assert_eq!(actual_response, expected_response);
         assert_eq!(config.max_hops, new_max_hops.unwrap());
         assert_eq!(
-            config.whitelist_tokens.deposit,
+            config.whitelisted_tokens.deposit,
             new_whitelisted_tokens_deposit.unwrap()
         );
     }

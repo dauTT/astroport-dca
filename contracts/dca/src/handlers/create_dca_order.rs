@@ -1,14 +1,12 @@
-use crate::state::{Config, WhitelistTokens, CONFIG};
+use crate::state::{Config, CONFIG};
 use crate::{
     error::ContractError,
     get_token_allowance::get_token_allowance,
     state::{DCA_ORDERS, USER_DCA_ORDERS},
 };
-use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
-use astroport_dca::dca::{Balance, DcaInfo};
-use cosmwasm_std::{
-    attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
-};
+use astroport::asset::{Asset, AssetInfo};
+use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
+use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, Uint128};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -51,7 +49,7 @@ pub fn create_dca_order(
     target_info: AssetInfo,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let whitelist_tokens = config.whitelist_tokens.clone();
+    let whitelisted_tokens = config.whitelisted_tokens.clone();
 
     let mut user_dca_orders = USER_DCA_ORDERS
         .may_load(deps.storage, &info.sender)?
@@ -70,7 +68,7 @@ pub fn create_dca_order(
         &env,
         &info,
         &config,
-        &whitelist_tokens,
+        &whitelisted_tokens,
         &dca_amount,
         &source,
         &tip,
@@ -129,7 +127,7 @@ fn sanity_checks(
     env: &Env,
     info: &MessageInfo,
     config: &Config,
-    whitelist_tokens: &WhitelistTokens,
+    whitelisted_tokens: &WhitelistedTokens,
     dca_amount: &Asset,
     deposit: &Asset,
     tip: &Asset,
@@ -150,14 +148,14 @@ fn sanity_checks(
     }
 
     // check deposit asset is in the Whitelist
-    if !whitelist_tokens.is_deposit_asset(&deposit.info) {
+    if !whitelisted_tokens.is_deposit_asset(&deposit.info) {
         return Err(ContractError::InvalidInput {
             msg: format!("Deposited asset, {:?},  not whitelisted", deposit.info),
         });
     }
 
     // check tip asset is whitelisted
-    if !whitelist_tokens.is_tip_asset(&tip.info) {
+    if !whitelisted_tokens.is_tip_asset(&tip.info) {
         return Err(ContractError::InvalidInput {
             msg: format!(" tip asset, {:?},  not whitelisted", tip.info),
         });
