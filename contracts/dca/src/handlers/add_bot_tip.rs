@@ -165,7 +165,7 @@ pub mod test_util {
 
         // save CONFIG to storage
         let mut store = MockStorage::new();
-        CONFIG.save(&mut store, &config);
+        _ = CONFIG.save(&mut store, &config);
 
         // save USER_DCA_ORDERS to storage
         // save USER_DCA_ORDERS to storage
@@ -173,19 +173,20 @@ pub mod test_util {
         let funds = [coin(15, "usdt"), coin(100, "uluna")];
         let info = mock_info("creator", &funds);
 
-        USER_DCA_ORDERS.save(
+        _ = USER_DCA_ORDERS.save(
             &mut store,
             &info.sender,
             &vec![dca_orders[0].id(), dca_orders[1].id()],
         );
-        DCA_ORDERS.save(&mut store, dca_orders[0].id(), &dca_orders[0]);
-        DCA_ORDERS.save(&mut store, dca_orders[1].id(), &dca_orders[1]);
+        _ = DCA_ORDERS.save(&mut store, dca_orders[0].id(), &dca_orders[0]);
+        _ = DCA_ORDERS.save(&mut store, dca_orders[1].id(), &dca_orders[1]);
 
         return store;
     }
 
     pub fn mock_config() -> Config {
         return Config {
+            owner: Addr::unchecked("owner_addr"),
             max_hops: 3u32,
             max_spread: Decimal::from_str(DEFAULT_SLIPPAGE).unwrap(),
             per_hop_fee: Uint128::from(100u128),
@@ -269,7 +270,7 @@ pub mod test_util {
 
         return DcaInfo::new(
             "order_1".to_string(),
-            Addr::unchecked("user 1"),
+            Addr::unchecked("creator"),
             10u64,
             50u64,
             10u64,
@@ -324,7 +325,7 @@ pub mod test_util {
 
         return DcaInfo::new(
             "order_2".to_string(),
-            Addr::unchecked("user 2"),
+            Addr::unchecked("creator"),
             10u64,
             100u64,
             10u64,

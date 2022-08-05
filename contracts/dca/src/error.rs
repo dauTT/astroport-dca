@@ -35,8 +35,8 @@ pub enum ContractError {
     #[error("Invalid input")]
     InvalidInput { msg: String },
 
-    #[error("The user does not have the specified initial_asset to DCA")]
-    NonexistentDca {},
+    #[error("The user does not have the specified DCA")]
+    NonexistentDca { msg: String },
 
     #[error("Swap exceeds maximum of {hops} hops")]
     MaxHopsAssertion { hops: u32 },

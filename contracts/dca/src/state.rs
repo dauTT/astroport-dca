@@ -11,6 +11,8 @@ use astroport_dca::dca::DcaInfo;
 /// Stores the main dca module parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// contract address that used for controls settings
+    pub owner: Addr,
     /// The maximum amount of hops to perform from `initial_asset` to `target_asset` when DCAing if the user does not specify
     pub max_hops: u32,
     /// The maximum amount of spread when performing a swap from `initial_asset` to `target_asset` when DCAing if the user does not specify

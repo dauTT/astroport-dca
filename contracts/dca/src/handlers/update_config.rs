@@ -1,5 +1,5 @@
 use astroport::{asset::AssetInfo, querier::query_factory_config};
-use cosmwasm_std::{attr, Decimal, DepsMut, MessageInfo, Response, StdError, Uint128};
+use cosmwasm_std::{attr, Addr, Decimal, DepsMut, MessageInfo, Response, StdError, Uint128};
 
 use crate::{error::ContractError, state::CONFIG};
 
@@ -33,13 +33,15 @@ pub fn update_config(
     info: MessageInfo,
     max_hops: Option<u32>,
     per_hop_fee: Option<Uint128>,
-    whitelisted_tokens: Option<Vec<AssetInfo>>,
+    whitelisted_tokens_deposit: Option<Vec<AssetInfo>>,
+    whitelisted_tokens_tip: Option<Vec<AssetInfo>>,
     max_spread: Option<Decimal>,
+    router_addr: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let factory_config = query_factory_config(&deps.querier, config.factory_addr)?;
 
-    if info.sender != factory_config.owner {
+    // permission check
+    if info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
     }
 
@@ -53,16 +55,80 @@ pub fn update_config(
             config.per_hop_fee = new_per_hop_fee;
         }
 
-        if let Some(new_whitelisted_tokens) = whitelisted_tokens {
-            config.whitelisted_tokens = new_whitelisted_tokens;
+        if let Some(new_whitelisted_tokens_deposit) = whitelisted_tokens_deposit {
+            config.whitelist_tokens.deposit = new_whitelisted_tokens_deposit;
+        }
+
+        if let Some(new_whitelisted_tokens_tip) = whitelisted_tokens_tip {
+            config.whitelist_tokens.tip = new_whitelisted_tokens_tip;
         }
 
         if let Some(new_max_spread) = max_spread {
             config.max_spread = new_max_spread;
         }
 
+        if let Some(new_router_addr) = router_addr {
+            config.router_addr = new_router_addr;
+        }
+
         Ok(config)
     })?;
 
     Ok(Response::default().add_attributes(vec![attr("action", "update_config")]))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::state::CONFIG;
+    use astroport::asset::AssetInfo;
+    use astroport_dca::dca::ExecuteMsg;
+
+    use cosmwasm_std::{
+        attr, coin,
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr, Empty, Response,
+    };
+
+    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
+    use crate::contract::execute;
+
+    #[test]
+    // deposit assets are whitelisted
+    fn test_update_config() {
+        // setup test
+        let mut deps = mock_dependencies();
+        deps.storage = mock_storage_valid_data();
+
+        let funds = [coin(200, "usdt"), coin(100, "uluna")];
+        let info = mock_info("owner_addr", &funds);
+
+        // build msg
+        let new_max_hops = Some(10u32);
+        let new_whitelisted_tokens_deposit = Some(vec![AssetInfo::NativeToken {
+            denom: "usdt".to_string(),
+        }]);
+
+        let msg = ExecuteMsg::UpdateConfig {
+            max_hops: new_max_hops.clone(),
+            per_hop_fee: None,
+            whitelisted_tokens_deposit: new_whitelisted_tokens_deposit.clone(),
+            whitelisted_tokens_tip: None,
+            max_spread: None,
+            router_addr: None,
+        };
+
+        // execute the msg
+        let actual_response = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+        let expected_response: Response<Empty> =
+            Response::new().add_attributes(vec![attr("action", "update_config")]);
+
+        let config = CONFIG.load(&deps.storage).unwrap();
+
+        assert_eq!(actual_response, expected_response);
+        assert_eq!(config.max_hops, new_max_hops.unwrap());
+        assert_eq!(
+            config.whitelist_tokens.deposit,
+            new_whitelisted_tokens_deposit.unwrap()
+        );
+    }
 }

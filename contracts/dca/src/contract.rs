@@ -142,23 +142,20 @@ pub fn execute(
         ExecuteMsg::UpdateConfig {
             max_hops,
             per_hop_fee,
-            whitelisted_tokens,
+            whitelisted_tokens_deposit,
+            whitelisted_tokens_tip,
             max_spread,
+            router_addr,
         } => update_config(
             deps,
             info,
             max_hops,
             per_hop_fee,
-            whitelisted_tokens,
+            whitelisted_tokens_deposit,
+            whitelisted_tokens_tip,
             max_spread,
+            router_addr,
         ),
-        /*
-        ExecuteMsg::UpdateUserConfig {
-            max_hops,
-            max_spread,
-        } => update_user_config(deps, info, max_hops, max_spread),
-
-        */
         ExecuteMsg::CreateDcaOrder {
             start_at,
             interval,
@@ -192,7 +189,7 @@ pub fn execute(
             perform_dca_purchase(deps, env, info, dca_order_id, hops)
         }
 
-        ExecuteMsg::CancelDcaOrder { initial_asset } => cancel_dca_order(deps, info, initial_asset),
+        ExecuteMsg::CancelDcaOrder { id } => cancel_dca_order(deps, info, id),
         ExecuteMsg::ModifyDcaOrder {
             old_initial_asset,
             new_initial_asset,

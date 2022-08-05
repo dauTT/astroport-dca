@@ -39,7 +39,7 @@ pub fn perform_dca_purchase(
     hops: Vec<SwapOperation>,
 ) -> Result<Response, ContractError> {
     let contract_config = CONFIG.load(deps.storage)?;
-    let order = DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.to_string())?;
+    let order = DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.clone())?;
     let hops_len = hops.len() as u32;
     let tip_cost = contract_config
         .per_hop_fee

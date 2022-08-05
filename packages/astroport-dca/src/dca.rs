@@ -121,9 +121,9 @@ pub enum ExecuteMsg {
         // An asset in the whitelist of type 'tip', which willl be use ti reward the bot.
         asset: Asset,
     },
-    /// Cancels a DCA order, returning any native asset back to the user
+    /// Cancels a DCA order, returning all assets back to the user
     CancelDcaOrder {
-        initial_asset: AssetInfo,
+        id: String,
     },
     /// Creates a new DCA order where `dca_amount` of token `initial_asset` will purchase
     /// `target_asset` every `interval`
@@ -156,17 +156,22 @@ pub enum ExecuteMsg {
         hops: Vec<SwapOperation>,
     },
 
-    /// Updates the configuration of the contract
+    /// Updates the configuration of the contract.
+    /// This message can only be executed by the factory address owner
     UpdateConfig {
         /// The new maximum amount of hops to perform from `initial_asset` to `target_asset` when
         /// performing DCA purchases if the user does not specify a custom max hop amount
         max_hops: Option<u32>,
         /// The new fee a user must pay per hop performed in a DCA purchase
         per_hop_fee: Option<Uint128>,
-        /// The new whitelisted tokens that can be used in a DCA hop route
-        whitelisted_tokens: Option<Vec<AssetInfo>>,
+        /// The new whitelisted deposit tokens that can be used in a DCA hop route
+        whitelisted_tokens_deposit: Option<Vec<AssetInfo>>,
+        /// The new whitelisted tip tokens that can be used in a DCA hop route
+        whitelisted_tokens_tip: Option<Vec<AssetInfo>>,
         /// The new maximum spread for DCA purchases
         max_spread: Option<Decimal>,
+        /// The new router address
+        router_addr: Option<Addr>,
     },
 
     /*
