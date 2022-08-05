@@ -6,7 +6,7 @@ use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use astroport_dca::dca::DcaInfo;
+use astroport_dca::dca::{DcaInfo, WhitelistedTokens};
 
 /// Stores the main dca module parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -24,30 +24,11 @@ pub struct Config {
     // In terra is uluna, in Juno is ujuno and so on..
     pub gas_info: AssetInfo,
     // The list of tokens which are allowed in the DCA contracts.
-    pub whitelist_tokens: WhitelistTokens,
+    pub whitelisted_tokens: WhitelistedTokens,
     /// The address of the Astroport factory contract
     pub factory_addr: Addr,
     /// The address of the Astroport router contract
     pub router_addr: Addr,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct WhitelistTokens {
-    // Token which can be by the user to deposit in the DCA contract
-    pub deposit: Vec<AssetInfo>,
-    // Token which can be used by the user to reward a bot for
-    // executing DCA orders. We assume this token are stablecoin like USDT or USDC
-    pub tip: Vec<AssetInfo>,
-}
-
-impl WhitelistTokens {
-    pub fn is_deposit_asset(&self, asset: &AssetInfo) -> bool {
-        self.deposit.contains(asset)
-    }
-
-    pub fn is_tip_asset(&self, asset: &AssetInfo) -> bool {
-        self.tip.contains(asset)
-    }
 }
 
 /// The contract configuration

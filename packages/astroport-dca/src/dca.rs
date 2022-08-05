@@ -219,7 +219,14 @@ pub enum ExecuteMsg {
     },
     */
     /// Withdraws a users bot tip from the contract.
-    Withdraw { tip: Uint128 },
+    Withdraw {
+        // The type of asset
+        withdraw_type: DcaAssetType,
+        // The id of the dca order
+        dca_order_id: String,
+        // The deposit asset
+        asset: Asset,
+    },
 
     // Deposit assets into the DCA contract.
     // i) if the asset is native, it is the responsibility of the UI to generate the  deposit tx to the DCA contract

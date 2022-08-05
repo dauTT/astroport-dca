@@ -183,7 +183,11 @@ pub fn execute(
             target_info,
         ),
 
-        ExecuteMsg::Withdraw { tip: amount } => withdraw(deps, info, amount),
+        ExecuteMsg::Withdraw {
+            withdraw_type,
+            dca_order_id,
+            asset,
+        } => withdraw(deps, info, withdraw_type, dca_order_id, asset),
 
         ExecuteMsg::PerformDcaPurchase { dca_order_id, hops } => {
             perform_dca_purchase(deps, env, info, dca_order_id, hops)

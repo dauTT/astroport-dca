@@ -77,6 +77,14 @@ pub fn try_add(
         });
     };
 
+    // check asset.amount > 0
+    // (amount can never be negative)
+    if asset.amount.is_zero() {
+        return Err(ContractError::InvalidInput {
+            msg: format!("Expetected  asset amount > 0. Got: 0",),
+        });
+    };
+
     match asset_type {
         DcaAssetType::Source => {
             order.balance.source.amount = order.balance.source.amount.checked_add(asset.amount)?
