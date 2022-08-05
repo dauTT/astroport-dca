@@ -26,16 +26,16 @@ pub enum ContractError {
     #[error("Token has already been used to DCA")]
     AlreadyDeposited {},
 
-    #[error("DCA amount is not equal to allowance set by token")]
+    #[error("DCA amount is not equal to allowance set by token '{token}'")]
     InvalidTokenDeposit { token: String },
 
     #[error("Invalid hop route through {token} due to token whitelist")]
     InvalidHopRoute { token: String },
 
-    #[error("Invalid input")]
+    #[error("Invalid input. msg: '{msg}'")]
     InvalidInput { msg: String },
 
-    #[error("The user does not have the specified DCA")]
+    #[error("The user does not have the specified DCA. msg: '{msg}'")]
     NonexistentDca { msg: String },
 
     #[error("Swap exceeds maximum of {hops} hops")]
@@ -68,6 +68,6 @@ pub enum ContractError {
     #[error("Initial asset deposited is not divisible by the DCA amount")]
     IndivisibleDeposit {},
 
-    #[error("Unable to update the DCA balance")]
+    #[error("Unable to update the DCA balance. msg: '{msg}'")]
     BalanceUpdateError { msg: String },
 }

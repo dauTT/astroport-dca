@@ -1,4 +1,3 @@
-mod add_bot_tip;
 mod cancel_dca_order;
 mod create_dca_order;
 mod deposit;
@@ -7,7 +6,6 @@ mod perform_dca_purchase;
 mod update_config;
 mod withdraw;
 
-pub use add_bot_tip::add_bot_tip;
 pub use cancel_dca_order::cancel_dca_order;
 pub use create_dca_order::create_dca_order;
 pub use deposit::deposit;

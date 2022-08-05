@@ -92,7 +92,7 @@ fn sanity_checks(
     // check balance deposit > dca_amount.amount
     if dca_order
         .balance
-        .deposit
+        .source
         .amount
         .lt(&dca_order.dca_amount.amount)
     {
@@ -125,7 +125,7 @@ fn sanity_checks(
         } => offer_asset_info.clone(),
     };
 
-    if first_hop != dca_order.balance.deposit.info {
+    if first_hop != dca_order.balance.source.info {
         return Err(ContractError::StartAssetAssertion {});
     }
 
@@ -148,9 +148,9 @@ fn sanity_checks(
 
 fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(), ContractError> {
     // subtract dca_amount from order and update last_purchase time
-    order.balance.deposit.amount = order
+    order.balance.source.amount = order
         .balance
-        .deposit
+        .source
         .amount
         .checked_sub(order.dca_amount.amount)
         .map_err(|_| ContractError::InsufficientBalance {})?;
@@ -191,7 +191,7 @@ fn build_messages(
     let mut messages: Vec<CosmosMsg> = Vec::new();
     let user_address = order.created_by();
     // add funds and router message to response
-    if let AssetInfo::Token { contract_addr } = &order.balance.deposit.info {
+    if let AssetInfo::Token { contract_addr } = &order.balance.source.info {
         // send a Transfer request to the token to the router
         messages.push(
             WasmMsg::Execute {
@@ -208,7 +208,7 @@ fn build_messages(
     }
 
     // if it is a native token, we need to send the funds
-    let funds = match &order.balance.deposit.info {
+    let funds = match &order.balance.source.info {
         AssetInfo::NativeToken { denom } => vec![Coin {
             amount: order.dca_amount.amount,
             denom: denom.clone(),
@@ -268,7 +268,7 @@ mod tests {
         Addr, Coin, Empty, Response,
     };
 
-    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
+    use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
 
     #[test]

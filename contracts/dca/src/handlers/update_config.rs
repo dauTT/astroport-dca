@@ -89,7 +89,7 @@ mod tests {
         Addr, Empty, Response,
     };
 
-    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
+    use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
 
     #[test]

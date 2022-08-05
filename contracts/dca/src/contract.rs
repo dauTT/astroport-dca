@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use crate::error::ContractError;
 use crate::handlers::{
-    add_bot_tip, cancel_dca_order, create_dca_order, deposit, modify_dca_order,
-    perform_dca_purchase, update_config, withdraw, ModifyDcaOrderParameters,
+    cancel_dca_order, create_dca_order, deposit, modify_dca_order, perform_dca_purchase,
+    update_config, withdraw, ModifyDcaOrderParameters,
 };
 use crate::queries::{get_config, get_dca_orders, get_user_dca_orders};
 use crate::state::{Config, CONFIG};
@@ -137,7 +137,11 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Deposit { assets } => deposit(deps, env, info, assets),
+        ExecuteMsg::Deposit {
+            deposit_type,
+            dca_order_id,
+            asset,
+        } => deposit(deps, env, info, deposit_type, dca_order_id, asset),
 
         ExecuteMsg::UpdateConfig {
             max_hops,
@@ -180,9 +184,7 @@ pub fn execute(
             gas,
             target_info,
         ),
-        ExecuteMsg::AddBotTip { dca_info_id, asset } => {
-            add_bot_tip(deps, env, info, dca_info_id, asset)
-        }
+
         ExecuteMsg::Withdraw { tip: amount } => withdraw(deps, info, amount),
 
         ExecuteMsg::PerformDcaPurchase { dca_order_id, hops } => {

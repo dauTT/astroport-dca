@@ -45,7 +45,7 @@ pub fn create_dca_order(
     dca_amount: Asset,
     max_hops: Option<u32>,
     max_spread: Option<Decimal>,
-    deposit: Asset,
+    source: Asset,
     tip: Asset,
     gas: Asset,
     target_info: AssetInfo,
@@ -72,15 +72,15 @@ pub fn create_dca_order(
         &config,
         &whitelist_tokens,
         &dca_amount,
-        &deposit,
+        &source,
         &tip,
         &gas,
     )?;
 
     let balance = Balance {
-        deposit: deposit.clone(),
+        source: source.clone(),
         spent: Asset {
-            info: deposit.info.clone(),
+            info: source.info.clone(),
             amount: Uint128::zero(),
         },
         target: Asset {
@@ -117,7 +117,7 @@ pub fn create_dca_order(
         attr("dca_amount", dca_amount.to_string()),
         attr("max_hops", format!("{:?}", max_hops)),
         attr("max_spread", format!("{:?}", max_spread)),
-        attr("deposit", format!("{:?}", deposit)),
+        attr("source", format!("{:?}", source)),
         attr("tip", format!("{:?}", tip)),
         attr("gas", format!("{:?}", gas)),
         attr("target_info", format!("{:?}", target_info)),
@@ -257,7 +257,7 @@ mod tests {
         Addr, Response, Uint128,
     };
 
-    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
+    use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
 
     #[test]
@@ -350,7 +350,7 @@ mod tests {
             attr("dca_amount", order.dca_amount.to_string()),
             attr("max_hops", format!("{:?}", order.max_hops)),
             attr("max_spread", format!("{:?}", order.max_spread)),
-            attr("deposit", format!("{:?}", order.balance.deposit)),
+            attr("source", format!("{:?}", order.balance.source)),
             attr("tip", format!("{:?}", order.balance.tip)),
             attr("gas", format!("{:?}", order.balance.gas)),
             attr("target_info", format!("{:?}", order.balance.target.info)),

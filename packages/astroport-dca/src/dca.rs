@@ -71,12 +71,12 @@ impl DcaInfo {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Balance {
-    /// The available asset in the DCA for purchasing the target asset.
+    /// The avaialble asset in the DCA for purchasing the target asset.
     /// The balance of this asset will decrease of a dca_amount at each purchase.
-    pub deposit: Asset,
-    /// The deposited asset which have been already spent to purchase the target asset.
+    pub source: Asset,
+    /// The source asset which have been already spent to purchase the target asset.
     /// The balance of this asset will increase of a dca_amount at each purchase.
-    /// Note that at each purchase: deposit + spent  = constant
+    /// Note that at each purchase: source + spent  = constant
     pub spent: Asset,
     /// The asset which the user wants to buy with the DCA order.
     /// The balance of this asset will increase at each purchase.
@@ -90,6 +90,26 @@ pub struct Balance {
     /// The last time the `target_asset` was purchased.
     /// This field will be updated at each purchase.
     pub last_purchase: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DcaAssetType {
+    Source,
+    Spent,
+    Target,
+    Tip,
+    Gas,
+}
+
+pub fn find_asset_info(asset_type: DcaAssetType, order: DcaInfo) -> AssetInfo {
+    return match asset_type {
+        DcaAssetType::Source => order.balance.source.info,
+        DcaAssetType::Spent => order.balance.spent.info,
+        DcaAssetType::Tip => order.balance.tip.info,
+        DcaAssetType::Gas => order.balance.gas.info,
+        DcaAssetType::Target => order.balance.target.info,
+    };
 }
 
 /// Describes the parameters used for creating a contract
@@ -114,17 +134,8 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    /// Add uusd top-up for bots to perform DCA requests
-    AddBotTip {
-        // The unique Id in DCA order
-        dca_info_id: String,
-        // An asset in the whitelist of type 'tip', which willl be use ti reward the bot.
-        asset: Asset,
-    },
     /// Cancels a DCA order, returning all assets back to the user
-    CancelDcaOrder {
-        id: String,
-    },
+    CancelDcaOrder { id: String },
     /// Creates a new DCA order where `dca_amount` of token `initial_asset` will purchase
     /// `target_asset` every `interval`
     ///
@@ -184,16 +195,19 @@ pub enum ExecuteMsg {
     },
     */
     /// Withdraws a users bot tip from the contract.
-    Withdraw {
-        tip: Uint128,
-    },
+    Withdraw { tip: Uint128 },
 
     // Deposit assets into the DCA contract.
     // i) if the asset is native, it is the responsibility of the UI to generate the  deposit tx to the DCA contract
     // ii) if the asset is a token contract, the DCA contract will execute the deposit tx.
     //     However we assume the UI will generate the allowance TX
     Deposit {
-        assets: Vec<Asset>,
+        // The type of asset
+        deposit_type: DcaAssetType,
+        // The id of the dca order
+        dca_order_id: String,
+        // The deposit asset
+        asset: Asset,
     },
 }
 

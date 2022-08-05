@@ -72,7 +72,7 @@ fn build_refund_messages(
     let mut refund_messages: Vec<CosmosMsg> = Vec::new();
 
     for asset in vec![
-        order.balance.deposit,
+        order.balance.source,
         order.balance.tip,
         order.balance.gas,
         order.balance.target,
@@ -118,7 +118,7 @@ mod tests {
         Addr, Empty, Response, Uint128,
     };
 
-    use super::super::add_bot_tip::test_util::mock_storage_valid_data;
+    use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
 
     #[test]
