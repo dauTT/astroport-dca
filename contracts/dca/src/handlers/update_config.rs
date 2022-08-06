@@ -89,8 +89,8 @@ mod tests {
         Empty, Response,
     };
 
-    use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
+    use crate::fixture::fixture::mock_storage_valid_data;
 
     #[test]
     // deposit assets are whitelisted

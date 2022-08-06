@@ -1,6 +1,6 @@
 pub mod contract;
 pub mod error;
-mod get_token_allowance;
+mod fixture;
 mod handlers;
 mod queries;
 pub mod state;

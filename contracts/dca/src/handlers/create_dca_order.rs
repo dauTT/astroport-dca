@@ -1,8 +1,8 @@
 use crate::state::{Config, CONFIG};
 use crate::{
     error::ContractError,
-    get_token_allowance::get_token_allowance,
     state::{DCA_ORDERS, USER_DCA_ORDERS},
+    utils::get_token_allowance,
 };
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
@@ -245,6 +245,7 @@ fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
 
 #[cfg(test)]
 mod tests {
+    use crate::fixture::fixture::mock_storage_valid_data;
     use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
@@ -255,7 +256,7 @@ mod tests {
         Addr, Response, Uint128,
     };
 
-    use super::super::deposit::test_util::mock_storage_valid_data;
+    //  use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
 
     #[test]

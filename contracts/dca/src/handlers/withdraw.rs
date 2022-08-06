@@ -99,7 +99,7 @@ pub fn try_sub(
 }
 
 mod tests {
-    use super::super::deposit::test_util::mock_storage_valid_data;
+    use crate::fixture::fixture::mock_storage_valid_data;
     use crate::{contract::execute, state::DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::{DcaAssetType, ExecuteMsg};

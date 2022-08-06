@@ -6,9 +6,8 @@ use cosmwasm_std::{
 
 use crate::{
     error::ContractError,
-    get_token_allowance::get_token_allowance,
     state::{CONFIG, DCA_ORDERS},
-    utils::build_send_message,
+    utils::{build_send_message, get_token_allowance},
 };
 
 #[derive(Clone, Debug)]
@@ -307,9 +306,9 @@ mod tests {
         Addr, DepsMut, Empty, Env, MessageInfo, Response, Uint128,
     };
 
-    use super::super::deposit::test_util::{dca_order_1_valid, mock_storage_valid_data};
     use super::ModifyDcaOrderParameters;
     use crate::contract::execute;
+    use crate::fixture::fixture::{dca_order_1_valid, mock_storage_valid_data};
 
     fn build_msg(dca_info_id: String, change_request: ModifyDcaOrderParameters) -> ExecuteMsg {
         return ExecuteMsg::ModifyDcaOrder {

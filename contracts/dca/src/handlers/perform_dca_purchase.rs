@@ -268,8 +268,8 @@ mod tests {
         Addr, Coin, Empty, Response,
     };
 
-    use super::super::deposit::test_util::mock_storage_valid_data;
     use crate::contract::execute;
+    use crate::fixture::fixture::mock_storage_valid_data;
 
     #[test]
     fn test_perform_dca_purchase_pass() {
