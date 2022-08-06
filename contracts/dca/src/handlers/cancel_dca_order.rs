@@ -1,6 +1,7 @@
 use crate::{
     error::ContractError,
     state::{DCA_ORDERS, USER_DCA_ORDERS},
+    utils::build_send_message,
 };
 use astroport::asset::AssetInfo;
 use astroport_dca::dca::DcaInfo;
@@ -78,29 +79,7 @@ fn build_refund_messages(
         order.balance.target,
     ] {
         if asset.amount.gt(&Uint128::zero()) {
-            match asset.info {
-                AssetInfo::Token { contract_addr } => refund_messages.push(
-                    WasmMsg::Execute {
-                        contract_addr: contract_addr.to_string(),
-                        funds: vec![],
-                        msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                            recipient: info.sender.to_string(),
-                            amount: asset.amount,
-                        })?,
-                    }
-                    .into(),
-                ),
-                AssetInfo::NativeToken { denom } => refund_messages.push(
-                    BankMsg::Send {
-                        to_address: info.sender.to_string(),
-                        amount: vec![Coin {
-                            amount: asset.amount,
-                            denom: denom.to_string(),
-                        }],
-                    }
-                    .into(),
-                ),
-            }
+            refund_messages.push(build_send_message(info.clone(), asset.clone())?);
         }
     }
 

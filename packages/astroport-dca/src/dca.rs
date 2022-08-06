@@ -137,16 +137,16 @@ pub struct InstantiateMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WhitelistedTokens {
-    // Token which can be by the user to deposit in the DCA contract
-    pub deposit: Vec<AssetInfo>,
+    // Token which can be by the user as source asset in the DCA contract to purchase the target asset
+    pub source: Vec<AssetInfo>,
     // Token which can be used by the user to reward a bot for
     // executing DCA orders. We assume this token are stablecoin like USDT or USDC
     pub tip: Vec<AssetInfo>,
 }
 
 impl WhitelistedTokens {
-    pub fn is_deposit_asset(&self, asset: &AssetInfo) -> bool {
-        self.deposit.contains(asset)
+    pub fn is_source_asset(&self, asset: &AssetInfo) -> bool {
+        self.source.contains(asset)
     }
 
     pub fn is_tip_asset(&self, asset: &AssetInfo) -> bool {
@@ -178,12 +178,15 @@ pub enum ExecuteMsg {
     },
     /// Modifies an existing DCA order, allowing the user to change certain parameters
     ModifyDcaOrder {
-        old_initial_asset: AssetInfo,
-        new_initial_asset: Asset,
-        new_target_asset: AssetInfo,
-        new_interval: u64,
-        new_dca_amount: Uint128,
-        should_reset_purchase_time: bool,
+        id: String,
+        new_source_asset: Option<Asset>,
+        new_target_asset_info: Option<AssetInfo>,
+        new_tip_asset: Option<Asset>,
+        new_interval: Option<u64>,
+        new_dca_amount: Option<Asset>,
+        new_start_at: Option<u64>,
+        new_max_hops: Option<u32>,
+        new_max_spread: Option<Decimal>,
     },
     /// Performs a DCA purchase for a specified user given a hop route
     PerformDcaPurchase {
@@ -200,7 +203,7 @@ pub enum ExecuteMsg {
         /// The new fee a user must pay per hop performed in a DCA purchase
         per_hop_fee: Option<Uint128>,
         /// The new whitelisted deposit tokens that can be used in a DCA hop route
-        whitelisted_tokens_deposit: Option<Vec<AssetInfo>>,
+        whitelisted_tokens_source: Option<Vec<AssetInfo>>,
         /// The new whitelisted tip tokens that can be used in a DCA hop route
         whitelisted_tokens_tip: Option<Vec<AssetInfo>>,
         /// The new maximum spread for DCA purchases

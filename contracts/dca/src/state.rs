@@ -1,4 +1,3 @@
-use astroport::asset::Asset;
 use astroport::asset::AssetInfo;
 
 use cosmwasm_std::{Addr, Decimal, Uint128};

@@ -33,7 +33,7 @@ pub fn update_config(
     info: MessageInfo,
     max_hops: Option<u32>,
     per_hop_fee: Option<Uint128>,
-    whitelisted_tokens_deposit: Option<Vec<AssetInfo>>,
+    whitelisted_tokens_source: Option<Vec<AssetInfo>>,
     whitelisted_tokens_tip: Option<Vec<AssetInfo>>,
     max_spread: Option<Decimal>,
     router_addr: Option<Addr>,
@@ -55,8 +55,8 @@ pub fn update_config(
             config.per_hop_fee = new_per_hop_fee;
         }
 
-        if let Some(new_whitelisted_tokens_deposit) = whitelisted_tokens_deposit {
-            config.whitelisted_tokens.deposit = new_whitelisted_tokens_deposit;
+        if let Some(new_whitelisted_tokens_deposit) = whitelisted_tokens_source {
+            config.whitelisted_tokens.source = new_whitelisted_tokens_deposit;
         }
 
         if let Some(new_whitelisted_tokens_tip) = whitelisted_tokens_tip {
@@ -104,14 +104,14 @@ mod tests {
 
         // build msg
         let new_max_hops = Some(10u32);
-        let new_whitelisted_tokens_deposit = Some(vec![AssetInfo::NativeToken {
+        let new_whitelisted_tokens_source = Some(vec![AssetInfo::NativeToken {
             denom: "usdt".to_string(),
         }]);
 
         let msg = ExecuteMsg::UpdateConfig {
             max_hops: new_max_hops.clone(),
             per_hop_fee: None,
-            whitelisted_tokens_deposit: new_whitelisted_tokens_deposit.clone(),
+            whitelisted_tokens_source: new_whitelisted_tokens_source.clone(),
             whitelisted_tokens_tip: None,
             max_spread: None,
             router_addr: None,
@@ -127,8 +127,8 @@ mod tests {
         assert_eq!(actual_response, expected_response);
         assert_eq!(config.max_hops, new_max_hops.unwrap());
         assert_eq!(
-            config.whitelisted_tokens.deposit,
-            new_whitelisted_tokens_deposit.unwrap()
+            config.whitelisted_tokens.source,
+            new_whitelisted_tokens_source.unwrap()
         );
     }
 }

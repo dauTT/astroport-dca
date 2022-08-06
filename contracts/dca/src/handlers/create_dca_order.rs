@@ -148,7 +148,7 @@ fn sanity_checks(
     }
 
     // check deposit asset is in the Whitelist
-    if !whitelisted_tokens.is_deposit_asset(&deposit.info) {
+    if !whitelisted_tokens.is_source_asset(&deposit.info) {
         return Err(ContractError::InvalidInput {
             msg: format!("Deposited asset, {:?},  not whitelisted", deposit.info),
         });

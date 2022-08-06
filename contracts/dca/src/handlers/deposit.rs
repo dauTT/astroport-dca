@@ -375,7 +375,7 @@ pub mod test_util {
                 denom: ULUNA_DENOM.to_string(),
             },
             whitelisted_tokens: WhitelistedTokens {
-                deposit: vec![
+                source: vec![
                     AssetInfo::NativeToken {
                         denom: "usdt".to_string(),
                     },
@@ -446,7 +446,7 @@ pub mod test_util {
                 },
                 amount: Uint128::from(5u128),
             },
-            last_purchase: 0u64,
+            last_purchase: 400u64,
         };
 
         return DcaInfo::new(
@@ -501,7 +501,7 @@ pub mod test_util {
                 },
                 amount: Uint128::from(5u128),
             },
-            last_purchase: 0u64,
+            last_purchase: 100u64,
         };
 
         return DcaInfo::new(

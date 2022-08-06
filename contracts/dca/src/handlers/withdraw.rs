@@ -1,4 +1,4 @@
-use crate::{error::ContractError, state::DCA_ORDERS};
+use crate::{error::ContractError, state::DCA_ORDERS, utils::build_send_message};
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{find_asset_info, DcaAssetType, DcaInfo};
 use cosmwasm_std::{
@@ -41,25 +41,7 @@ pub fn withdraw(
         },
     )?;
 
-    let message: CosmosMsg = match asset.info.clone() {
-        AssetInfo::Token { contract_addr } => WasmMsg::Execute {
-            contract_addr: contract_addr.to_string(),
-            funds: vec![],
-            msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: info.sender.to_string(),
-                amount: asset.amount,
-            })?,
-        }
-        .into(),
-        AssetInfo::NativeToken { denom } => BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: vec![Coin {
-                amount: asset.amount,
-                denom: denom.to_string(),
-            }],
-        }
-        .into(),
-    };
+    let message = build_send_message(info.clone(), asset.clone())?;
 
     Ok(Response::new().add_message(message).add_attributes(vec![
         attr("action", "withdraw"),
