@@ -1,4 +1,3 @@
-use astroport::asset::addr_validate_to_lower;
 use cosmwasm_std::{Deps, StdResult};
 
 use crate::state::DCA_ORDERS;

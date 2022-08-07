@@ -1,6 +1,6 @@
 pub mod contract;
 pub mod error;
-mod fixture;
+pub mod fixture;
 mod handlers;
 mod queries;
 pub mod state;

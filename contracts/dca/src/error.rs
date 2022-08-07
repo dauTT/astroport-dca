@@ -50,6 +50,12 @@ pub enum ContractError {
     #[error("DCA purchase occurred too early")]
     PurchaseTooEarly {},
 
+    #[error("There are too many DCA purchases in queue. Try later!")]
+    TooManyPurchasesInQueue {},
+
+    #[error("TMP_CONTRACT_TARGET_BALANCE is None")]
+    TmpContractTargetBalance {},
+
     #[error("Hop route does not end up at target_asset")]
     TargetAssetAssertion {},
 

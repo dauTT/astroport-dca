@@ -4,7 +4,7 @@ use crate::handlers::{
     update_config, withdraw, ModifyDcaOrderParameters,
 };
 use crate::queries::{get_config, get_dca_orders, get_user_dca_orders};
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, CONFIG, TMP_CONTRACT_TARGET_BALANCE};
 use astroport::asset::addr_validate_to_lower;
 use astroport_dca::dca::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
@@ -62,6 +62,7 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
+    TMP_CONTRACT_TARGET_BALANCE.save(deps.storage, &None)?;
 
     Ok(Response::new())
 }

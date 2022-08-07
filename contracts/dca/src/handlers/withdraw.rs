@@ -1,10 +1,7 @@
 use crate::{error::ContractError, state::DCA_ORDERS, utils::build_send_message};
-use astroport::asset::{Asset, AssetInfo};
+use astroport::asset::Asset;
 use astroport_dca::dca::{find_asset_info, DcaAssetType, DcaInfo};
-use cosmwasm_std::{
-    attr, to_binary, BankMsg, Coin, CosmosMsg, DepsMut, MessageInfo, Response, WasmMsg,
-};
-use cw20::Cw20ExecuteMsg;
+use cosmwasm_std::{attr, DepsMut, MessageInfo, Response};
 
 /// ## Description
 /// Withdraws a users bot tip from the contract.

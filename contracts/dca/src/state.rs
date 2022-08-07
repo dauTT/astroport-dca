@@ -1,4 +1,4 @@
-use astroport::asset::AssetInfo;
+use astroport::asset::{Asset, AssetInfo};
 
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::{Item, Map};
@@ -38,3 +38,9 @@ pub const USER_DCA_ORDERS: Map<&Addr, Vec<String>> = Map::new("USER_DCA_ORDERS")
 
 // The DCA orders. The key is the DCA order id and the value is the information of DCA
 pub const DCA_ORDERS: Map<String, DcaInfo> = Map::new("DCA_ORDERS");
+
+// Variable to store the temporare target balance of the DCA contract for a specific dca_order_id
+// first element of the tuple: dca_order_id
+// second element of the tuple : contract target balance
+pub const TMP_CONTRACT_TARGET_BALANCE: Item<Option<(String, Asset)>> =
+    Item::new("tmp_contract_target_balance");

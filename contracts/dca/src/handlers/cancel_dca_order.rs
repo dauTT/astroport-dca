@@ -3,12 +3,8 @@ use crate::{
     state::{DCA_ORDERS, USER_DCA_ORDERS},
     utils::build_send_message,
 };
-use astroport::asset::AssetInfo;
 use astroport_dca::dca::DcaInfo;
-use cosmwasm_std::{
-    attr, to_binary, BankMsg, Coin, CosmosMsg, DepsMut, MessageInfo, Response, Uint128, WasmMsg,
-};
-use cw20::Cw20ExecuteMsg;
+use cosmwasm_std::{attr, CosmosMsg, DepsMut, MessageInfo, Response, Uint128};
 
 /// ## Description
 /// Cancels a users DCA purchase so thatto_string() it will no longer be fulfilled.
@@ -96,8 +92,8 @@ mod tests {
         Empty, Response,
     };
 
-    use crate::fixture::fixture::mock_storage_valid_data;
     use crate::contract::execute;
+    use crate::fixture::fixture::mock_storage_valid_data;
 
     #[test]
     // deposit assets are whitelisted

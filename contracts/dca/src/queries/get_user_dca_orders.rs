@@ -1,5 +1,5 @@
-use astroport::asset::{addr_validate_to_lower, AssetInfo};
-use cosmwasm_std::{Deps, Env, StdResult};
+use astroport::asset::addr_validate_to_lower;
+use cosmwasm_std::{Deps, StdResult};
 
 use crate::state::USER_DCA_ORDERS;
 

@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod fixture {
-    use crate::state::{Config, CONFIG, DCA_ORDERS, USER_DCA_ORDERS};
+    use crate::state::{Config, CONFIG, DCA_ORDERS, TMP_CONTRACT_TARGET_BALANCE, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
     use astroport::pair::DEFAULT_SLIPPAGE;
     use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
@@ -17,6 +17,8 @@ pub mod fixture {
         // save CONFIG to storage
         let mut store = MockStorage::new();
         _ = CONFIG.save(&mut store, &config);
+        // save TMP_CONTRACT_TARGET_BALANCE to storage
+        _ = TMP_CONTRACT_TARGET_BALANCE.save(&mut store, &None);
 
         // save USER_DCA_ORDERS to storage
         // save USER_DCA_ORDERS to storage

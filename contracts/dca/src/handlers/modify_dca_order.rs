@@ -1,13 +1,11 @@
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{DcaInfo, WhitelistedTokens};
-use cosmwasm_std::{
-    attr, coins, BankMsg, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, Uint128,
-};
+use cosmwasm_std::{attr, CosmosMsg, Decimal, DepsMut, MessageInfo, Response, Uint128};
 
 use crate::{
     error::ContractError,
     state::{CONFIG, DCA_ORDERS},
-    utils::{build_send_message, get_token_allowance},
+    utils::build_send_message,
 };
 
 #[derive(Clone, Debug)]
@@ -293,17 +291,14 @@ fn replace_dca_amount(order: &mut DcaInfo, new_dca_amount: Asset) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        error::ContractError,
-        state::{CONFIG, DCA_ORDERS},
-    };
+    use crate::state::DCA_ORDERS;
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
 
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, DepsMut, Empty, Env, MessageInfo, Response, Uint128,
+        Addr, Empty, Response, Uint128,
     };
 
     use super::ModifyDcaOrderParameters;

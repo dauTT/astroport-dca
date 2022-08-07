@@ -1,9 +1,11 @@
 use crate::error::ContractError;
-use astroport::asset::{Asset, AssetInfo};
-use cosmwasm_std::{to_binary, BankMsg, Coin, CosmosMsg, MessageInfo, WasmMsg};
-use cw20::Cw20ExecuteMsg;
-
+use astroport::{
+    asset::{Asset, AssetInfo},
+    querier::{query_balance, query_token_balance},
+};
+use cosmwasm_std::{to_binary, BankMsg, Coin, CosmosMsg, MessageInfo, QuerierWrapper, WasmMsg};
 use cosmwasm_std::{Addr, Deps, Env, StdResult, Uint128};
+use cw20::Cw20ExecuteMsg;
 use cw20::{AllowanceResponse, Cw20QueryMsg};
 
 /// ## Description
@@ -31,6 +33,52 @@ pub fn get_token_allowance(
     )?;
 
     Ok(allowance_response.allowance)
+}
+
+pub fn query_asset_balance(
+    querier: &QuerierWrapper,
+    account_addr: Addr,
+    asset_info: AssetInfo,
+) -> StdResult<Asset> {
+    let amount = match asset_info.clone() {
+        AssetInfo::NativeToken { denom } => query_balance(querier, account_addr, denom),
+        AssetInfo::Token { contract_addr } => {
+            query_token_balance(querier, contract_addr, account_addr)
+        }
+    }?;
+
+    Ok(Asset {
+        info: asset_info,
+        amount: amount,
+    })
+}
+
+pub fn try_sub(asset1: Asset, asset2: Asset) -> Result<Asset, ContractError> {
+    if asset1.info != asset2.info {
+        return Err(ContractError::InvalidInput {
+            msg: format!(
+                "Expetected  asset1.info:{:?} and asset2.info{:?} to be consistent",
+                asset1.info, asset2.info
+            ),
+        });
+    };
+
+    if asset2.amount.gt(&asset1.amount) {
+        return Err(ContractError::InvalidInput {
+            msg: format!(
+                "Asset2.amount ({:?}) has to be smallet than asset1.amount ({:?}). Got asset2.amount > asset1.amount ",
+                asset2.amount, asset1.amount
+            ),
+        });
+    }
+
+    let diff_asset_amount = asset1.amount.checked_sub(asset2.amount)?;
+    let diff_asset = Asset {
+        info: asset1.info,
+        amount: diff_asset_amount,
+    };
+
+    Ok(diff_asset)
 }
 
 /*

@@ -1,18 +1,24 @@
+// use std::clone;
+
+use crate::utils::{query_asset_balance, try_sub};
 use astroport::{
     asset::AssetInfo,
     router::{ExecuteMsg as RouterExecuteMsg, SwapOperation},
 };
 use astroport_dca::dca::DcaInfo;
 use cosmwasm_std::{
-    attr, to_binary, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response,
-    Uint128, WasmMsg,
+    attr, entry_point, to_binary, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo,
+    Reply, ReplyOn, Response, StdError, SubMsg, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 
 use crate::{
     error::ContractError,
-    state::{Config, CONFIG, DCA_ORDERS},
+    state::{Config, CONFIG, DCA_ORDERS, TMP_CONTRACT_TARGET_BALANCE},
 };
+
+/// A `reply` call code ID of sub-message.
+const PERFORM_DCA_PURCHASE_REPLY_ID: u64 = 1;
 
 /// ## Description
 /// Performs a DCA purchase on behalf of another user using the hop route specified.
@@ -32,7 +38,7 @@ use crate::{
 /// * `hops` - A [`Vec<SwapOperation>`] of the hop operations to complete in the swap to purchase
 /// the target asset.
 pub fn perform_dca_purchase(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     dca_order_id: String,
@@ -45,11 +51,14 @@ pub fn perform_dca_purchase(
         .per_hop_fee
         .checked_mul(Uint128::from(hops_len))?;
 
+    // Store the target asset balance of the dca contract before the
+    // execution of the purchase
+    store_dca_contract_target_balance(&mut deps, env.clone(), order.clone())?;
     sanity_checks(&env, &contract_config, &order, &hops, tip_cost.clone())?;
 
     // store messages to send in response
-    let mut messages: Vec<CosmosMsg> = Vec::new();
-
+    let mut messages: Vec<CosmosMsg> = vec![];
+    let mut sub_messages: Vec<SubMsg> = vec![];
     // load dca order and update it
     DCA_ORDERS.update(
         deps.storage,
@@ -60,7 +69,8 @@ pub fn perform_dca_purchase(
             // retrieve max_spread from user config, or default to contract set max_spread
             let max_spread = order.max_spread.unwrap_or(contract_config.max_spread);
 
-            messages = build_messages(
+            (sub_messages, messages) = build_messages(
+                &env,
                 &info,
                 &contract_config,
                 order,
@@ -75,11 +85,41 @@ pub fn perform_dca_purchase(
         },
     )?;
 
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
-        attr("action", "perform_dca_purchase"),
-        attr("dca_order_id", dca_order_id),
-        attr("hops", format!("{:?}", hops)),
-    ]))
+    Ok(Response::new()
+        .add_submessages(sub_messages)
+        .add_messages(messages)
+        .add_attributes(vec![
+            attr("action", "perform_dca_purchase"),
+            attr("dca_order_id", dca_order_id),
+            attr("hops", format!("{:?}", hops)),
+        ]))
+}
+
+pub fn store_dca_contract_target_balance(
+    deps: &mut DepsMut,
+    env: Env,
+    order: DcaInfo,
+) -> Result<(), ContractError> {
+    TMP_CONTRACT_TARGET_BALANCE.update(deps.storage, |v| {
+        if v.is_some() {
+            Err(StdError::generic_err(
+                "Too many purchase in queue! try later",
+            ))
+        } else {
+            // execute query to target asset
+            let target_asset = order.balance.target.clone();
+
+            let dca_contract_target_balance = query_asset_balance(
+                &deps.querier,
+                env.contract.address.clone(),
+                target_asset.info.clone(),
+            )?;
+
+            Ok(Some((order.id(), dca_contract_target_balance)))
+        }
+    })?;
+
+    Ok(())
 }
 
 fn sanity_checks(
@@ -164,9 +204,8 @@ fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(
             msg: "Unable to add dca_amount to the spent amount".to_string(),
         })?;
 
-    // todo: update order.balance.target
-    // This will required to be able to read the response msg from the swap operation
-    // Most likely it is possible using SubMsg
+    // Update balance target
+    // This is done in the reply method below.
 
     order.balance.tip.amount = order
         .balance
@@ -181,15 +220,16 @@ fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(
 }
 
 fn build_messages(
+    env: &Env,
     info: &MessageInfo,
     contract_config: &Config,
     order: &mut DcaInfo,
     hops: Vec<SwapOperation>,
     max_spread: Decimal,
     tip_cost: Uint128,
-) -> Result<Vec<CosmosMsg>, ContractError> {
+) -> Result<(Vec<SubMsg>, Vec<CosmosMsg>), ContractError> {
     let mut messages: Vec<CosmosMsg> = Vec::new();
-    let user_address = order.created_by();
+    let mut sub_messages: Vec<SubMsg> = vec![];
     // add funds and router message to response
     if let AssetInfo::Token { contract_addr } = &order.balance.source.info {
         // send a Transfer request to the token to the router
@@ -217,19 +257,22 @@ fn build_messages(
     };
 
     // tell the router to perform swap operations
-    messages.push(
-        WasmMsg::Execute {
+    sub_messages.push(SubMsg {
+        msg: WasmMsg::Execute {
             contract_addr: contract_config.router_addr.to_string(),
             funds,
             msg: to_binary(&RouterExecuteMsg::ExecuteSwapOperations {
                 operations: hops,
                 minimum_receive: None,
-                to: Some(user_address.clone()), // todo: send the target asset about back to the DCA contract rather than to the user. and update balance.target accordingly.
+                to: Some(env.contract.address.clone()), // In the end send the target asset back to the dca contract
                 max_spread: Some(max_spread),
             })?,
         }
         .into(),
-    );
+        id: PERFORM_DCA_PURCHASE_REPLY_ID,
+        gas_limit: None,
+        reply_on: ReplyOn::Success,
+    });
 
     // add tip payment to messages
     match &order.balance.tip.info {
@@ -256,7 +299,42 @@ fn build_messages(
         ),
     }
 
-    Ok(messages)
+    Ok((sub_messages, messages))
+}
+
+/// # Description
+/// The entry point to the contract for processing the reply from the submessage.
+/// # Params
+/// * **deps** is the object of type [`DepsMut`].
+///
+/// * **env** is the object of type [`Env`].
+///
+/// * **_msg** is the object of type [`Reply`].
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> Result<Response, ContractError> {
+    let contract_target_balance_before_purchase = TMP_CONTRACT_TARGET_BALANCE.load(deps.storage)?;
+
+    match contract_target_balance_before_purchase.clone() {
+        None => return Err(ContractError::TmpContractTargetBalance {}),
+        Some((dca_order_id, target_balance_before_purchase)) => {
+            let mut order = DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.clone())?;
+
+            let target_balance_after_purchase = query_asset_balance(
+                &deps.querier,
+                env.contract.address.clone(),
+                order.balance.target.info.clone(),
+            )?;
+            let diff_amount = try_sub(
+                target_balance_after_purchase,
+                target_balance_before_purchase,
+            )?;
+
+            order.balance.target.amount = order.balance.target.amount + diff_amount.amount;
+            DCA_ORDERS.save(deps.storage, dca_order_id, &order)?;
+
+            return Ok(Response::default());
+        }
+    };
 }
 
 mod tests {
