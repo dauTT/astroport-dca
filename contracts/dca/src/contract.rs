@@ -8,8 +8,7 @@ use crate::state::{Config, CONFIG, TMP_CONTRACT_TARGET_BALANCE};
 use astroport::asset::addr_validate_to_lower;
 use astroport_dca::dca::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult,
+    entry_point, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
 use std::str::FromStr;
@@ -242,7 +241,7 @@ pub fn execute(
 /// * **QueryMsg::UserDcaOrders {}** Returns information about a specified users current DCA orders
 /// set in a [`Vec<DcaInfo>`] object.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&get_config(deps)?),
         //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),

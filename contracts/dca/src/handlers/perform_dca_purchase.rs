@@ -337,6 +337,7 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> Result<Response, ContractE
     };
 }
 
+#[cfg(test)]
 mod tests {
     use astroport::{asset::AssetInfo, router::SwapOperation};
     use astroport_dca::dca::ExecuteMsg;

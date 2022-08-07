@@ -95,6 +95,7 @@ pub fn try_sub(
     Ok(order)
 }
 
+#[cfg(test)]
 mod tests {
     use crate::fixture::fixture::mock_storage_valid_data;
     use crate::{contract::execute, state::DCA_ORDERS};
