@@ -16,3 +16,8 @@ target/
 .cargo-ok
 /artifacts/
 /contracts/**/schema/
+
+# node_modules
+scripts/node_modules/*
+
+

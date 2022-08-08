@@ -1,0 +1,15 @@
+{
+  "tokenCodeID": 15,
+  "tokenAddress": "terra1j7m4f68lruceg5xq3gfkfdgdgz02vhvlq2p67vf9v3hwdydaat3s4xtd88",
+  "multisigAddress": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+  "whitelistCodeID": 19,
+  "whitelistAddress": "terra160uy8dt3wk6q5aswc266t6hak07xergpmakk9srsaedg7xwcw67s3yg939",
+  "pairCodeID": 20,
+  "pairStableCodeID": 21,
+  "xastroTokenCodeID": 22,
+  "stakingAddress": "terra1f5vdkslcghur6uqecar9rrg5qr6skmflprj6gzpaqxznjdah3syqqj5zu4",
+  "xastroAddress": "terra1u9ayepulw285rfcj5vh462e0t6vwa6yxl7960l9pkae66w2gf7hqgwjcw9",
+  "factoryAddress": "terra1qnmggqv3u03axw69cn578hukqhl4f2ze2k403ykcdlhj98978u7stv7fyj",
+  "routerAddress": "terra15kwtyl2jtf8frwh3zu2jntqvem8u36y8aw6yy9z3ypgkfjx6ct2q73xas8",
+  "makerAddress": "terra1ypsg336x2phzcwze4yu7ecv5ptu069rgxzane56njh502kuf9thskjdvqj"
+}
