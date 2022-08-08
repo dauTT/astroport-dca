@@ -2,13 +2,14 @@
 
 # images:
 # - terra-local_astroport
-# - astroport:v1.0.0
+# - astroport:v1.0.0 -- core astroport
+# - dautt/astroport:v1.0.1  --> test tokens, core astroport
 # - dautt/astroport:v1.0.0
 # create image -->  docker commit terra-local_terrad_1 dautt/astroport:v1.0.0
 # push to hub.docker --> docker push  dautt/astroport:v1.0.0
 
 # cmd: 
-# clean -> clean container
+# rm -> rimove container
 # stop --> stop container 
 # run --> run image 
 # enter --> enter into the running container
@@ -24,7 +25,7 @@ if [[ "$1" = "stop" ]]; then
     docker stop $IMAGE
 fi
 
-if [[ "$1" = "clean" ]]; then
+if [[ "$1" = "rm" ]]; then
     docker rm -f $IMAGE
 fi
 

@@ -11,5 +11,16 @@
   "xastroAddress": "terra1u9ayepulw285rfcj5vh462e0t6vwa6yxl7960l9pkae66w2gf7hqgwjcw9",
   "factoryAddress": "terra1qnmggqv3u03axw69cn578hukqhl4f2ze2k403ykcdlhj98978u7stv7fyj",
   "routerAddress": "terra15kwtyl2jtf8frwh3zu2jntqvem8u36y8aw6yy9z3ypgkfjx6ct2q73xas8",
-  "makerAddress": "terra1ypsg336x2phzcwze4yu7ecv5ptu069rgxzane56njh502kuf9thskjdvqj"
+  "makerAddress": "terra1ypsg336x2phzcwze4yu7ecv5ptu069rgxzane56njh502kuf9thskjdvqj",
+  "tokenAddresses": {
+    "AAA": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe",
+    "BBB": "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p",
+    "CCC": "terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul",
+    "DDD": "terra10v0hrjvwwlqwvk2yhwagm9m9h385spxa4s54f4aekhap0lxyekys4jh3s4",
+    "EEE": "terra1wastjc07zuuy46mzzl3egz4uzy6fs59752grxqvz8zlsqccpv2wqnfu3yr",
+    "FFF": "terra1uvt40rsp68wtas0y75w34qdn5h0g5eyefy5gmvzftdnupyv7q7vqqp9fge",
+    "GGG": "terra1dkcsehtk7vq2ta9x4kdazlcpr4s58xfxt3dvuj98025rmleg4g2q8g6d3p",
+    "HHH": "terra1ul4msjc3mmaxsscdgdtjds85rg50qrepvrczp0ldgma5mm9xv8yq8a7tex",
+    "III": "terra19egn9e8v5493mtum626upcjyu5xj3mru57htge0ma66sk5gyqf4qu6r90m"
+  }
 }
