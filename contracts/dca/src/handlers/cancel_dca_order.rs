@@ -105,7 +105,7 @@ mod tests {
         let funds = [coin(100, "ibc/usdx")];
         let info = mock_info("creator", &funds);
 
-        let dca_info_id = "order_2";
+        let dca_info_id = "2";
         // build msg
         // increment the uluna tip asset of 100 uluna of dca order 2
         let msg = ExecuteMsg::CancelDcaOrder {
@@ -137,10 +137,8 @@ mod tests {
             .unwrap();
         assert_eq!(user_dca_orders.len(), 1);
 
-        let expected_response: Response<Empty> = Response::new().add_attributes(vec![
-            attr("action", "cancel_dca_order"),
-            attr("id", "order_2"),
-        ]);
+        let expected_response: Response<Empty> = Response::new()
+            .add_attributes(vec![attr("action", "cancel_dca_order"), attr("id", "2")]);
 
         assert_eq!(actual_response.attributes, expected_response.attributes);
     }

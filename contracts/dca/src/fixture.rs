@@ -1,6 +1,8 @@
 #[cfg(test)]
 pub mod fixture {
-    use crate::state::{Config, CONFIG, DCA_ORDERS, TMP_CONTRACT_TARGET_BALANCE, USER_DCA_ORDERS};
+    use crate::state::{
+        Config, CONFIG, DCA_ORDERS, LAST_DCA_ORDER_ID, TMP_CONTRACT_TARGET_BALANCE, USER_DCA_ORDERS,
+    };
     use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
     use astroport::pair::DEFAULT_SLIPPAGE;
     use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
@@ -14,11 +16,11 @@ pub mod fixture {
     pub fn mock_storage_valid_data() -> MemoryStorage {
         let config = mock_config();
 
-        // save CONFIG to storage
+        // save state
         let mut store = MockStorage::new();
         _ = CONFIG.save(&mut store, &config);
-        // save TMP_CONTRACT_TARGET_BALANCE to storage
         _ = TMP_CONTRACT_TARGET_BALANCE.save(&mut store, &None);
+        _ = LAST_DCA_ORDER_ID.save(&mut store, &"2".to_string());
 
         // save USER_DCA_ORDERS to storage
         // save USER_DCA_ORDERS to storage
@@ -122,7 +124,7 @@ pub mod fixture {
         };
 
         return DcaInfo::new(
-            "order_1".to_string(),
+            "1".to_string(),
             Addr::unchecked("creator"),
             10u64,
             50u64,
@@ -177,7 +179,7 @@ pub mod fixture {
         };
 
         return DcaInfo::new(
-            "order_2".to_string(),
+            "2".to_string(),
             Addr::unchecked("creator"),
             10u64,
             100u64,

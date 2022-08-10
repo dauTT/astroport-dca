@@ -44,6 +44,9 @@ pub enum ContractError {
     #[error("Tip balance is insufficient to pay performer")]
     InsufficientTipBalance {},
 
+    #[error("The dca_order_id = '{id}' is already used!")]
+    DCAUniqueContraintViolation { id: String },
+
     #[error("The hop route specified was empty")]
     EmptyHopRoute {},
 

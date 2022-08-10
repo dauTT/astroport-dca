@@ -329,7 +329,7 @@ mod tests {
         let info = mock_info("owner_addr", &funds);
 
         // build msg
-        let dca_info_id = "order_1".to_string();
+        let dca_info_id = "1".to_string();
         let new_source_asset = Asset {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("asset0"),
@@ -388,7 +388,7 @@ mod tests {
         let info = mock_info("owner_addr", &funds);
 
         // build msg
-        let dca_info_id = "order_1".to_string();
+        let dca_info_id = "1".to_string();
         let new_target_asset = Asset {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("target"),
@@ -449,7 +449,7 @@ mod tests {
         let info = mock_info("owner_addr", &funds);
 
         // build msg
-        let dca_info_id = "order_1".to_string();
+        let dca_info_id = "1".to_string();
         let new_tip_asset = Asset {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("axlusdc"),
@@ -499,7 +499,7 @@ mod tests {
         let info = mock_info("owner_addr", &funds);
 
         // build msg
-        let dca_info_id = "order_1".to_string();
+        let dca_info_id = "1".to_string();
         let new_source_asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: "new_usdt".to_string(),
@@ -536,7 +536,7 @@ mod tests {
         let info = mock_info("owner_addr", &funds);
 
         // build msg
-        let dca_info_id = "order_1".to_string();
+        let dca_info_id = "1".to_string();
         let new_source_asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: "uluna".to_string(),

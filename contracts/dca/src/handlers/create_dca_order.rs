@@ -1,14 +1,17 @@
 use crate::state::{Config, CONFIG};
 use crate::{
     error::ContractError,
-    state::{DCA_ORDERS, USER_DCA_ORDERS},
+    state::{DCA_ORDERS, LAST_DCA_ORDER_ID, USER_DCA_ORDERS},
     utils::get_token_allowance,
 };
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
-use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{
+    attr, to_binary, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, Uint128, WasmMsg,
+};
+use cw20::Cw20ExecuteMsg;
 use std::collections::HashMap;
-use uuid::Uuid;
+use std::str::FromStr;
 
 /// ## Description
 /// Creates a new DCA order for a user where the `target_asset` will be purchased with `dca_amount`
@@ -50,13 +53,19 @@ pub fn create_dca_order(
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let whitelisted_tokens = config.whitelisted_tokens.clone();
-
     let mut user_dca_orders = USER_DCA_ORDERS
         .may_load(deps.storage, &info.sender)?
         .unwrap_or_default();
-
     let created_at = env.block.time.seconds();
-    let id = Uuid::new_v4().simple().to_string();
+
+    // get the next unique id to use:
+    let last_order_id = LAST_DCA_ORDER_ID
+        .may_load(deps.storage)?
+        .unwrap_or("0".to_string());
+
+    let next_dca_order_id = Uint128::from_str(&last_order_id)?
+        .checked_add(Uint128::from(1u128))?
+        .to_string();
 
     // start_at > created_at
     // target_asset whitelisted and  amount >0
@@ -64,6 +73,7 @@ pub fn create_dca_order(
     // tip_asset whitelisted and amount > 0
     // gas amount > 0
     sanity_checks(
+        &next_dca_order_id,
         &deps,
         &env,
         &info,
@@ -91,7 +101,7 @@ pub fn create_dca_order(
     };
     // store dca order
     let dca = DcaInfo::new(
-        id.clone(),
+        next_dca_order_id.clone(),
         info.sender.clone(),
         env.block.time.seconds(),
         start_at,
@@ -101,14 +111,36 @@ pub fn create_dca_order(
         max_spread,
         balance.clone(),
     );
-    user_dca_orders.push(id.clone());
+    user_dca_orders.push(next_dca_order_id.clone());
 
-    DCA_ORDERS.save(deps.storage, id.clone(), &dca)?;
+    DCA_ORDERS.save(deps.storage, next_dca_order_id.clone(), &dca)?;
     USER_DCA_ORDERS.save(deps.storage, &info.sender, &user_dca_orders)?;
+    LAST_DCA_ORDER_ID.save(deps.storage, &next_dca_order_id)?;
+
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    for asset in vec![balance.source, balance.tip, balance.gas] {
+        // The dca contract will only perform a TransferFrom from  token asset
+        // Native assets needs already been sent before.
+        if let AssetInfo::Token { contract_addr } = asset.info.clone() {
+            messages.push(
+                WasmMsg::Execute {
+                    contract_addr: contract_addr.to_string(),
+                    funds: vec![],
+                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                        owner: info.sender.to_string(),
+                        recipient: env.contract.address.to_string().clone(),
+                        amount: asset.amount,
+                    })?,
+                }
+                .into(),
+            );
+        }
+    }
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "create_dca_order"),
-        attr("id", id),
+        attr("id", next_dca_order_id),
         attr("created_at", created_at.to_string()),
         attr("start_at", start_at.to_string()),
         attr("interval", interval.to_string()),
@@ -123,6 +155,7 @@ pub fn create_dca_order(
 }
 
 fn sanity_checks(
+    next_dca_order_id: &String,
     deps: &DepsMut,
     env: &Env,
     info: &MessageInfo,
@@ -134,6 +167,14 @@ fn sanity_checks(
     gas: &Asset,
 ) -> Result<(), ContractError> {
     let asset_map = &mut HashMap::new();
+
+    // Check next_dca_order_id is not already used
+    let res = DCA_ORDERS.load(deps.storage, next_dca_order_id.clone());
+    if let Ok(_) = res {
+        return Err(ContractError::DCAUniqueContraintViolation {
+            id: next_dca_order_id.clone(),
+        });
+    }
 
     // Check amount to spend at each purchase is of the same type of
     // deposit asset
@@ -334,6 +375,8 @@ mod tests {
         assert_eq!(user_orders.len(), 3);
 
         let order_id = user_orders[2].clone();
+        assert_eq!(order_id, "3");
+
         let order = DCA_ORDERS
             .load(deps.as_ref().storage, order_id.clone())
             .unwrap();

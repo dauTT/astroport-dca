@@ -134,7 +134,7 @@ mod tests {
 
         // build msg
         let deposit_type = DcaAssetType::Source;
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
         let asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: "usdt".to_string(),
@@ -144,7 +144,7 @@ mod tests {
 
         let msg = ExecuteMsg::Deposit {
             deposit_type: deposit_type.clone(),
-            dca_order_id: "order_1".to_string(),
+            dca_order_id: "1".to_string(),
             asset: asset.clone(),
         };
 
@@ -182,7 +182,7 @@ mod tests {
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1";
+        let dac_order_id = "1";
 
         // build msg
         let deposit_type = DcaAssetType::Source;
@@ -217,7 +217,7 @@ mod tests {
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
 
         // build msg
         let deposit_type = DcaAssetType::Source;
@@ -250,7 +250,7 @@ mod tests {
 
         let funds = [coin(100, "ibc/usdx"), coin(50, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
 
         // build msg
         let deposit_type = DcaAssetType::Tip;
@@ -285,7 +285,7 @@ mod tests {
 
         let expected_response: Response<Empty> = Response::new().add_attributes(vec![
             attr("action", "deposit"),
-            attr("dca_order_id", "order_1"),
+            attr("dca_order_id", "1"),
             attr("deposit_type", format!("{:?}", DcaAssetType::Tip)),
             attr("asset", format!("{:?}", tip_asset)),
         ]);
@@ -300,7 +300,7 @@ mod tests {
 
         let funds = [coin(100, "ibc/usdx"), coin(50, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
 
         // build msg
         let deposit_type = DcaAssetType::Target;

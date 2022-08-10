@@ -83,6 +83,10 @@ export class TransactionError extends CustomError {
     }
 }
 
+export async function createTransactions(wallet: Wallet, msgs: Msg[]) {
+    return await wallet.createAndSignTx({ msgs: msgs})
+}
+
 export async function createTransaction(wallet: Wallet, msg: Msg) {
     return await wallet.createAndSignTx({ msgs: [msg]})
 }
@@ -90,6 +94,15 @@ export async function createTransaction(wallet: Wallet, msg: Msg) {
 export async function broadcastTransaction(terra: LCDClient, signedTx: Tx) {
     const result = await terra.tx.broadcast(signedTx)
     await sleep(TIMEOUT)
+    return result
+}
+
+export async function performTransactions(terra: LCDClient, wallet: Wallet, msgs: Msg[]) {
+    const signedTx = await createTransactions(wallet, msgs)
+    const result = await broadcastTransaction(terra, signedTx)
+    if (isTxError(result)) {
+        throw new TransactionError(result.code, result.codespace, result.raw_log)
+    }
     return result
 }
 
@@ -184,6 +197,14 @@ export class NativeAsset {
         }
     }
 
+    getAsset(){
+        return {
+            info: this.getInfo(),
+            amount: this.amount
+        }
+    }
+
+
     withAmount() {
         return {
             "info": this.getInfo(),
@@ -214,6 +235,13 @@ export class TokenAsset {
             "token": {
                 "contract_addr": this.addr
             }
+        }
+    }
+
+    getAsset(){
+        return {
+            info: this.getInfo(),
+            amount: this.amount
         }
     }
 

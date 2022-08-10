@@ -35,10 +35,12 @@ pub const CONFIG: Item<Config> = Item::new("config");
 /// The DCA orders for a user.
 /// The key is the user address and the value is the corresponding list of DCA order id.
 pub const USER_DCA_ORDERS: Map<&Addr, Vec<String>> = Map::new("USER_DCA_ORDERS");
-
-// The DCA orders. The key is the DCA order id and the value is the information of DCA
+// The DCA orders. The key is the DCA order id and the value is the information of DCA.
+// (For technical reason we can use Uint128 as key but instead use a String).
 pub const DCA_ORDERS: Map<String, DcaInfo> = Map::new("DCA_ORDERS");
-
+// Every time a user create a DCA order, this variable will increase of 1.
+// This is needed create a unique id for the DCA orders.
+pub const LAST_DCA_ORDER_ID: Item<String> = Item::new("LAST_DCA_ORDER_ID");
 // Variable to store the temporare target balance of the DCA contract for a specific dca_order_id
 // first element of the tuple: dca_order_id
 // second element of the tuple : contract target balance

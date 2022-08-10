@@ -359,7 +359,7 @@ mod tests {
         let funds: Vec<Coin> = vec![]; //[coin(100, "ibc/usdx")];
         let info = mock_info("creator", &funds);
 
-        let dca_info_id = "order_2".to_string();
+        let dca_info_id = "2".to_string();
 
         // ibc/usdc -> asset0 --> target_2_addr
         let hops = vec![
@@ -401,7 +401,7 @@ mod tests {
 
         let expected_response: Response<Empty> = Response::new().add_attributes(vec![
             attr("action", "perform_dca_purchase"),
-            attr("dca_order_id", "order_2"),
+            attr("dca_order_id", "2"),
             attr("hops", format!("{:?}", hops)),
         ]);
 

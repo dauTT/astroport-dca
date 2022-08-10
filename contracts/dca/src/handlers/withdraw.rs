@@ -118,7 +118,7 @@ mod tests {
 
         // build msg
         let withdraw_type = DcaAssetType::Source;
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
         let asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: "usdt".to_string(),
@@ -128,7 +128,7 @@ mod tests {
 
         let msg = ExecuteMsg::Withdraw {
             withdraw_type: withdraw_type.clone(),
-            dca_order_id: "order_1".to_string(),
+            dca_order_id: "1".to_string(),
             asset: asset.clone(),
         };
 
@@ -166,7 +166,7 @@ mod tests {
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1";
+        let dac_order_id = "1";
 
         // build msg
         let withdraw_type = DcaAssetType::Target;
@@ -216,7 +216,7 @@ mod tests {
 
         let funds = [coin(100, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
 
         // build msg
         let withdraw_type = DcaAssetType::Source;
@@ -249,7 +249,7 @@ mod tests {
 
         let funds = [coin(100, "ibc/usdx"), coin(50, "usdt")];
         let info = mock_info("creator", &funds);
-        let dac_order_id = "order_1".to_string();
+        let dac_order_id = "1".to_string();
 
         // build msg
         let withdraw_type = DcaAssetType::Tip;
