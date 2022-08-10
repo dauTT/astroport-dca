@@ -169,7 +169,7 @@ pub enum ExecuteMsg {
         dca_amount: Asset,
         max_hops: Option<u32>,
         max_spread: Option<Decimal>,
-        deposit: Asset,
+        source: Asset,
         tip: Asset,
         gas: Asset,
         target_info: AssetInfo,

@@ -317,7 +317,7 @@ mod tests {
             },
             amount: Uint128::from(5u128),
         };
-        let deposit = Asset {
+        let source = Asset {
             info: AssetInfo::NativeToken {
                 denom: "usdt".to_string(),
             },
@@ -345,7 +345,7 @@ mod tests {
             dca_amount: dca_amount.clone(),
             max_hops: None,
             max_spread: None,
-            deposit: deposit.clone(),
+            source: source.clone(),
             tip: tip.clone(),
             gas: gas.clone(),
             target_info: target_info.clone(),
