@@ -138,7 +138,7 @@ pub fn create_dca_order(
         }
     }
 
-    Ok(Response::new().add_attributes(vec![
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "create_dca_order"),
         attr("id", next_dca_order_id),
         attr("created_at", created_at.to_string()),
