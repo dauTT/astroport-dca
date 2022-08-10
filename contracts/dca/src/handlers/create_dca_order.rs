@@ -162,7 +162,7 @@ fn sanity_checks(
     config: &Config,
     whitelisted_tokens: &WhitelistedTokens,
     dca_amount: &Asset,
-    deposit: &Asset,
+    source: &Asset,
     tip: &Asset,
     gas: &Asset,
 ) -> Result<(), ContractError> {
@@ -178,20 +178,20 @@ fn sanity_checks(
 
     // Check amount to spend at each purchase is of the same type of
     // deposit asset
-    if !(dca_amount.info == deposit.info) {
+    if !(dca_amount.info == source.info) {
         return Err(ContractError::InvalidInput {
             msg: format!(
-                "The asset type of dac_amount asset and deposit asset must be the same.
-                 Got dac_amount asset type: {:?}  , deposit asset type: {:?}",
-                dca_amount, deposit.info
+                "The asset type of dac_amount asset and source asset must be the same.
+                 Got dac_amount asset type: {:?}  , source asset type: {:?}",
+                dca_amount, source.info
             ),
         });
     }
 
-    // check deposit asset is in the Whitelist
-    if !whitelisted_tokens.is_source_asset(&deposit.info) {
+    // check source asset is in the Whitelist
+    if !whitelisted_tokens.is_source_asset(&source.info) {
         return Err(ContractError::InvalidInput {
-            msg: format!("Deposited asset, {:?},  not whitelisted", deposit.info),
+            msg: format!("Source asset, {:?},  not whitelisted", source.info),
         });
     }
 
@@ -202,11 +202,11 @@ fn sanity_checks(
         });
     }
 
-    // Check deposit asset amount > 0.
+    // Check source asset amount > 0.
     // For Uint128 amount, it is equivalent to check that the amount is not zero.
-    if deposit.amount.is_zero() {
+    if source.amount.is_zero() {
         return Err(ContractError::InvalidInput {
-            msg: format!("Expected Deposited asset > 0, got 0"),
+            msg: format!("Expected source asset > 0, got 0"),
         });
     }
 
@@ -237,11 +237,11 @@ fn sanity_checks(
         });
     }
 
-    aggregate_assets(asset_map, deposit.clone());
+    aggregate_assets(asset_map, source.clone());
     aggregate_assets(asset_map, tip.clone());
     aggregate_assets(asset_map, gas.clone());
 
-    // let assets = vec![deposit, tip, gas];
+    // let assets = vec![source, tip, gas];
     // aggregate_assets(asset_map, asset.clone());
     for (_, asset) in asset_map {
         // check that user has sent the valid tokens to the contract
@@ -252,7 +252,7 @@ fn sanity_checks(
             AssetInfo::Token { contract_addr } => {
                 let allowance =
                     get_token_allowance(&deps.as_ref(), &env, &info.sender, contract_addr)?;
-                if allowance != asset.amount {
+                if allowance >= asset.amount {
                     return Err(ContractError::InvalidTokenDeposit {
                         token: contract_addr.to_string(),
                     });
