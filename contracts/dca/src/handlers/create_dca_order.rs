@@ -252,9 +252,11 @@ fn sanity_checks(
             AssetInfo::Token { contract_addr } => {
                 let allowance =
                     get_token_allowance(&deps.as_ref(), &env, &info.sender, contract_addr)?;
-                if allowance >= asset.amount {
-                    return Err(ContractError::InvalidTokenDeposit {
-                        token: contract_addr.to_string(),
+                if allowance < asset.amount {
+                    return Err(ContractError::AllowanceCheckFail {
+                        token_addr: contract_addr.to_string(),
+                        aggr_amount: asset.amount.to_string(),
+                        allowance: allowance.to_string(),
                     });
                 }
             }

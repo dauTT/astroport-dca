@@ -1,155 +1,263 @@
-import 'dotenv/config'
+import "dotenv/config";
+import * as fs from "fs";
 import {
-    Coin,
-    Coins,
-    isTxError,
-    LCDClient,
-    LocalTerra,
-    MnemonicKey,
-    Msg,
-    MsgExecuteContract,
-    MsgInstantiateContract,
-    MsgMigrateContract,
-    MsgStoreCode,
-    MsgUpdateContractAdmin, Tx,
-    Wallet
-} from '@terra-money/terra.js';
+  Coin,
+  Coins,
+  isTxError,
+  LCDClient,
+  LocalTerra,
+  MnemonicKey,
+  Msg,
+  MsgExecuteContract,
+  MsgInstantiateContract,
+  MsgMigrateContract,
+  MsgStoreCode,
+  MsgUpdateContractAdmin,
+  Tx,
+  Wallet,
+} from "@terra-money/terra.js";
+import { readFileSync, writeFileSync } from "fs";
+import path from "path";
+import { CustomError } from "ts-custom-error";
 import {
-    readFileSync,
-    writeFileSync,
-} from 'fs'
-import path from 'path'
-import { CustomError } from 'ts-custom-error'
+  logToFile,
+  ARTIFACTS_PATH,
+  LOCAL_TERRA_TEST_ACCOUNTS,
+} from "./util.js";
 
-export const ARTIFACTS_PATH = 'astroport_artifacts'
-
-export function readArtifact(name: string = 'artifact') {
-    try {
-        const data = readFileSync(path.join(ARTIFACTS_PATH, `${name}.json`), 'utf8')
-        return JSON.parse(data)
-    } catch (e) {
-        return {}
-    }
+// the prefixPath needs to be adjusted dependending where we are calling this function
+export function readArtifact(
+  prefixPath: string = "",
+  name: string = "artifact"
+) {
+  try {
+    const prefixPathComplete =
+      prefixPath === "" ? ARTIFACTS_PATH : `${prefixPath}/${ARTIFACTS_PATH}`;
+    console.log(prefixPathComplete);
+    const data = readFileSync(
+      path.join(prefixPathComplete, `${name}.json`),
+      "utf8"
+    );
+    return JSON.parse(data);
+  } catch (e) {
+    return {};
+  }
 }
 
 export interface Client {
-    wallet: Wallet
-    terra: LCDClient | LocalTerra
+  wallet: Wallet;
+  terra: LCDClient | LocalTerra;
 }
 
 export function newClient(): Client {
-    const client = <Client>{}
-    if (process.env.WALLET) {
-        client.terra = new LCDClient({
-            URL: String(process.env.LCD_CLIENT_URL),
-            chainID: String(process.env.CHAIN_ID)
-        })
-        client.wallet = recover(client.terra, process.env.WALLET)
-    } else {
-        client.terra = new LocalTerra()
-        client.wallet = (client.terra as LocalTerra).wallets.test1
-    }
-    return client
+  const client = <Client>{};
+  if (process.env.WALLET) {
+    client.terra = new LCDClient({
+      URL: String(process.env.LCD_CLIENT_URL),
+      chainID: String(process.env.CHAIN_ID),
+    });
+    client.wallet = recover(client.terra, process.env.WALLET);
+  } else {
+    client.terra = new LocalTerra();
+    client.wallet = (client.terra as LocalTerra).wallets.test1;
+  }
+  return client;
 }
 
-export function writeArtifact(data: object, name: string = 'artifact') {
-    writeFileSync(path.join(ARTIFACTS_PATH, `${name}.json`), JSON.stringify(data, null, 2))
+export function newTestClient(testAccount: string): Client {
+  const client = <Client>{};
+  client.terra = new LCDClient({
+    URL: String(process.env.LCD_CLIENT_URL),
+    chainID: String(process.env.CHAIN_ID),
+  });
+
+  client.wallet = recover(
+    client.terra,
+    LOCAL_TERRA_TEST_ACCOUNTS[testAccount].mnemonic
+  );
+  return client;
+}
+
+export function writeArtifact(
+  data: object,
+  name: string = "artifact",
+  prefixPath: String = ""
+) {
+  const prefixPathComplete =
+    prefixPath === "" ? ARTIFACTS_PATH : `${prefixPath}/${ARTIFACTS_PATH}`;
+
+  writeFileSync(
+    path.join(prefixPathComplete, `${name}.json`),
+    JSON.stringify(data, null, 2)
+  );
 }
 
 // Tequila lcd is load balanced, so txs can't be sent too fast, otherwise account sequence queries
 // may resolve an older state depending on which lcd you end up with. Generally 1000 ms is is enough
 // for all nodes to sync up.
-let TIMEOUT = 1000
+let TIMEOUT = 1000;
 
 export function setTimeoutDuration(t: number) {
-    TIMEOUT = t
+  TIMEOUT = t;
 }
 
 export function getTimeoutDuration() {
-    return TIMEOUT
+  return TIMEOUT;
 }
 
 export async function sleep(timeout: number) {
-    await new Promise(resolve => setTimeout(resolve, timeout))
+  await new Promise((resolve) => setTimeout(resolve, timeout));
 }
 
 export class TransactionError extends CustomError {
-    public constructor(
-        public code: string | number,
-        public codespace: string | undefined,
-        public rawLog: string,
-    ) {
-        super("transaction failed")
-    }
+  public constructor(
+    public code: string | number,
+    public codespace: string | undefined,
+    public rawLog: string
+  ) {
+    super("transaction failed");
+  }
 }
 
 export async function createTransactions(wallet: Wallet, msgs: Msg[]) {
-    return await wallet.createAndSignTx({ msgs: msgs})
+  return await wallet.createAndSignTx({ msgs: msgs });
 }
 
 export async function createTransaction(wallet: Wallet, msg: Msg) {
-    return await wallet.createAndSignTx({ msgs: [msg]})
+  return await wallet.createAndSignTx({ msgs: [msg] });
 }
 
 export async function broadcastTransaction(terra: LCDClient, signedTx: Tx) {
-    const result = await terra.tx.broadcast(signedTx)
-    await sleep(TIMEOUT)
-    return result
+  const result = await terra.tx.broadcast(signedTx);
+  await sleep(TIMEOUT);
+  return result;
 }
 
-export async function performTransactions(terra: LCDClient, wallet: Wallet, msgs: Msg[]) {
-    const signedTx = await createTransactions(wallet, msgs)
-    const result = await broadcastTransaction(terra, signedTx)
-    if (isTxError(result)) {
-        throw new TransactionError(result.code, result.codespace, result.raw_log)
-    }
-    return result
+export async function performTransactions(
+  terra: LCDClient,
+  wallet: Wallet,
+  msgs: Msg[]
+) {
+  const signedTx = await createTransactions(wallet, msgs);
+  const result = await broadcastTransaction(terra, signedTx);
+  if (isTxError(result)) {
+    throw new TransactionError(result.code, result.codespace, result.raw_log);
+  }
+  return result;
 }
 
-export async function performTransaction(terra: LCDClient, wallet: Wallet, msg: Msg) {
-    const signedTx = await createTransaction(wallet, msg)
-    const result = await broadcastTransaction(terra, signedTx)
-    if (isTxError(result)) {
-        throw new TransactionError(result.code, result.codespace, result.raw_log)
-    }
-    return result
+export async function performTransaction(
+  terra: LCDClient,
+  wallet: Wallet,
+  msg: Msg
+) {
+  const signedTx = await createTransaction(wallet, msg);
+  const result = await broadcastTransaction(terra, signedTx);
+  if (isTxError(result)) {
+    throw new TransactionError(result.code, result.codespace, result.raw_log);
+  }
+  return result;
 }
 
-export async function uploadContract(terra: LCDClient, wallet: Wallet, filepath: string) {
-    const contract = readFileSync(filepath, 'base64');
-    const uploadMsg = new MsgStoreCode(wallet.key.accAddress, contract);
-    let result = await performTransaction(terra, wallet, uploadMsg);
-    return Number(result.logs[0].eventsByType.store_code.code_id[0]) // code_id
+export async function uploadContract(
+  terra: LCDClient,
+  wallet: Wallet,
+  filepath: string
+) {
+  const contract = readFileSync(filepath, "base64");
+  const uploadMsg = new MsgStoreCode(wallet.key.accAddress, contract);
+  let result = await performTransaction(terra, wallet, uploadMsg);
+  return Number(result.logs[0].eventsByType.store_code.code_id[0]); // code_id
 }
 
-export async function instantiateContract(terra: LCDClient, wallet: Wallet, admin_address: string | undefined, codeId: number, msg: object, label: string) {
-    const instantiateMsg = new MsgInstantiateContract(wallet.key.accAddress, admin_address, codeId, msg, undefined, label);
-    let result = await performTransaction(terra, wallet, instantiateMsg)
-    return result.logs[0].events.filter(el => el.type == 'instantiate').map(x => x.attributes.filter(element => element.key == '_contract_address' ).map(x => x.value));
+export async function instantiateContract(
+  terra: LCDClient,
+  wallet: Wallet,
+  admin_address: string | undefined,
+  codeId: number,
+  msg: object,
+  label: string
+) {
+  const instantiateMsg = new MsgInstantiateContract(
+    wallet.key.accAddress,
+    admin_address,
+    codeId,
+    msg,
+    undefined,
+    label
+  );
+  let result = await performTransaction(terra, wallet, instantiateMsg);
+  return result.logs[0].events
+    .filter((el) => el.type == "instantiate")
+    .map((x) =>
+      x.attributes
+        .filter((element) => element.key == "_contract_address")
+        .map((x) => x.value)
+    );
 }
 
-export async function executeContract(terra: LCDClient, wallet: Wallet, contractAddress: string, msg: object, coins?: Coins.Input) {
-    const executeMsg = new MsgExecuteContract(wallet.key.accAddress, contractAddress, msg, coins);
-    return await performTransaction(terra, wallet, executeMsg);
+export async function executeContract(
+  terra: LCDClient,
+  wallet: Wallet,
+  contractAddress: string,
+  msg: object,
+  coins?: Coins.Input
+) {
+  const executeMsg = new MsgExecuteContract(
+    wallet.key.accAddress,
+    contractAddress,
+    msg,
+    coins
+  );
+  return await performTransaction(terra, wallet, executeMsg);
 }
 
-export async function queryContract(terra: LCDClient, contractAddress: string, query: object): Promise<any> {
-    return await terra.wasm.contractQuery(contractAddress, query)
+export async function queryContract(
+  terra: LCDClient,
+  contractAddress: string,
+  query: object
+): Promise<any> {
+  return await terra.wasm.contractQuery(contractAddress, query);
 }
 
-export async function deployContract(terra: LCDClient, wallet: Wallet, admin_address: string, filepath: string, initMsg: object, label: string) {
-    const codeId = await uploadContract(terra, wallet, filepath);
-    return await instantiateContract(terra, wallet, admin_address, codeId, initMsg, label);
+export async function deployContract(
+  terra: LCDClient,
+  wallet: Wallet,
+  admin_address: string,
+  filepath: string,
+  initMsg: object,
+  label: string
+) {
+  const codeId = await uploadContract(terra, wallet, filepath);
+  return await instantiateContract(
+    terra,
+    wallet,
+    admin_address,
+    codeId,
+    initMsg,
+    label
+  );
 }
 
-export async function migrate(terra: LCDClient, wallet: Wallet, contractAddress: string, newCodeId: number, msg: object) {
-    const migrateMsg = new MsgMigrateContract(wallet.key.accAddress, contractAddress, newCodeId, msg);
-    return await performTransaction(terra, wallet, migrateMsg);
+export async function migrate(
+  terra: LCDClient,
+  wallet: Wallet,
+  contractAddress: string,
+  newCodeId: number,
+  msg: object
+) {
+  const migrateMsg = new MsgMigrateContract(
+    wallet.key.accAddress,
+    contractAddress,
+    newCodeId,
+    msg
+  );
+  return await performTransaction(terra, wallet, migrateMsg);
 }
 
 export function recover(terra: LCDClient, mnemonic: string) {
-    const mk = new MnemonicKey({ mnemonic: mnemonic });
-    return terra.wallet(mk);
+  const mk = new MnemonicKey({ mnemonic: mnemonic });
+  return terra.wallet(mk);
 }
 
 export async function update_contract_admin(
@@ -158,143 +266,188 @@ export async function update_contract_admin(
   contract_address: string,
   admin_address: string
 ) {
-    let msg = new MsgUpdateContractAdmin(
-        wallet.key.accAddress,
-        admin_address,
-        contract_address
-    );
+  let msg = new MsgUpdateContractAdmin(
+    wallet.key.accAddress,
+    admin_address,
+    contract_address
+  );
 
-    return await performTransaction(terra, wallet, msg);
+  return await performTransaction(terra, wallet, msg);
 }
 
 export function initialize(terra: LCDClient) {
-    const mk = new MnemonicKey();
+  const mk = new MnemonicKey();
 
-    console.log(`Account Address: ${mk.accAddress}`);
-    console.log(`MnemonicKey: ${mk.mnemonic}`);
+  console.log(`Account Address: ${mk.accAddress}`);
+  console.log(`MnemonicKey: ${mk.mnemonic}`);
 
-    return terra.wallet(mk);
+  return terra.wallet(mk);
 }
 
 export function toEncodedBinary(object: any) {
-    return Buffer.from(JSON.stringify(object)).toString('base64');
+  return Buffer.from(JSON.stringify(object)).toString("base64");
 }
 
-export class NativeAsset {
-    denom: string;
-    amount?: string
-
-    constructor(denom: string, amount?: string) {
-        this.denom = denom
-        this.amount = amount
-    }
-
-    getInfo() {
-        return {
-            "native_token": {
-                "denom": this.denom,
-            }
-        }
-    }
-
-    getAsset(){
-        return {
-            info: this.getInfo(),
-            amount: this.amount
-        }
-    }
-
-
-    withAmount() {
-        return {
-            "info": this.getInfo(),
-            "amount": this.amount
-        }
-    }
-
-    getDenom() {
-        return this.denom
-    }
-
-    toCoin() {
-        return new Coin(this.denom, this.amount || "0")
-    }
+export interface Asset {
+  getInfo(): any;
+  getAsset(): any;
+  getDenom(): string;
+  // toCoin(): Coin;
 }
 
-export class TokenAsset {
-    addr: string;
-    amount?: string
+export class NativeAsset implements Asset {
+  denom: string;
+  amount?: string;
 
-    constructor(addr: string, amount?: string) {
-        this.addr = addr
-        this.amount = amount
-    }
+  constructor(denom: string, amount?: string) {
+    this.denom = denom;
+    this.amount = amount;
+  }
 
-    getInfo() {
-        return {
-            "token": {
-                "contract_addr": this.addr
-            }
-        }
-    }
+  getInfo() {
+    return {
+      native_token: {
+        denom: this.denom,
+      },
+    };
+  }
 
-    getAsset(){
-        return {
-            info: this.getInfo(),
-            amount: this.amount
-        }
-    }
+  getAsset() {
+    return {
+      info: this.getInfo(),
+      amount: this.amount,
+    };
+  }
 
-    withAmount() {
-        return {
-            "info": this.getInfo(),
-            "amount": this.amount
-        }
-    }
+  withAmount() {
+    return {
+      info: this.getInfo(),
+      amount: this.amount,
+    };
+  }
 
-    toCoin() {
-        return null
-    }
+  getDenom() {
+    return this.denom;
+  }
 
-    getDenom() {
-        return this.addr
-    }
+  toCoin() {
+    return new Coin(this.denom, this.amount || "0");
+  }
+}
+
+export class TokenAsset implements Asset {
+  addr: string;
+  amount?: string;
+
+  constructor(addr: string, amount?: string) {
+    this.addr = addr;
+    this.amount = amount;
+  }
+
+  getInfo() {
+    return {
+      token: {
+        contract_addr: this.addr,
+      },
+    };
+  }
+
+  getAsset() {
+    return {
+      info: this.getInfo(),
+      amount: this.amount,
+    };
+  }
+
+  withAmount() {
+    return {
+      info: this.getInfo(),
+      amount: this.amount,
+    };
+  }
+
+  toCoin() {
+    return null;
+  }
+
+  getDenom() {
+    return this.addr;
+  }
 }
 
 export class NativeSwap {
-    offer_denom: string;
-    ask_denom: string;
+  offer_denom: string;
+  ask_denom: string;
 
-    constructor(offer_denom: string, ask_denom: string) {
-        this.offer_denom = offer_denom
-        this.ask_denom = ask_denom
-    }
+  constructor(offer_denom: string, ask_denom: string) {
+    this.offer_denom = offer_denom;
+    this.ask_denom = ask_denom;
+  }
 
-    getInfo() {
-        return {
-            "native_swap": {
-                "offer_denom": this.offer_denom,
-                "ask_denom": this.ask_denom
-            }
-        }
-    }
+  getInfo() {
+    return {
+      native_swap: {
+        offer_denom: this.offer_denom,
+        ask_denom: this.ask_denom,
+      },
+    };
+  }
 }
 
 export class AstroSwap {
-    offer_asset_info: TokenAsset|NativeAsset;
-    ask_asset_info: TokenAsset|NativeAsset;
+  offer_asset_info: TokenAsset | NativeAsset;
+  ask_asset_info: TokenAsset | NativeAsset;
 
-    constructor(offer_asset_info: TokenAsset|NativeAsset, ask_asset_info: TokenAsset|NativeAsset) {
-        this.offer_asset_info = offer_asset_info
-        this.ask_asset_info = ask_asset_info
-    }
+  constructor(
+    offer_asset_info: TokenAsset | NativeAsset,
+    ask_asset_info: TokenAsset | NativeAsset
+  ) {
+    this.offer_asset_info = offer_asset_info;
+    this.ask_asset_info = ask_asset_info;
+  }
 
-    getInfo() {
-        return {
-            "astro_swap": {
-                "offer_asset_info": this.offer_asset_info.getInfo(),
-                "ask_asset_info": this.ask_asset_info.getInfo(),
-            }
-        }
-    }
+  getInfo() {
+    return {
+      astro_swap: {
+        offer_asset_info: this.offer_asset_info.getInfo(),
+        ask_asset_info: this.ask_asset_info.getInfo(),
+      },
+    };
+  }
+}
+
+export async function queryBankDebug(
+  terra: LCDClient,
+  address: string,
+  queryName: String,
+  logPath: fs.PathOrFileDescriptor
+): Promise<any> {
+  logToFile(logPath, "", `************** ${queryName} **************`);
+  let res = await terra.bank.balance(address);
+  const niceOutput = JSON.stringify(res, null, 4);
+  logToFile(logPath, niceOutput, "");
+  return res;
+}
+
+export async function queryContractDebug(
+  terra: LCDClient,
+  contractAddress: string,
+  query: object,
+  queryName: String,
+  logPath: fs.PathOrFileDescriptor
+): Promise<any> {
+  logToFile(logPath, "", `************** ${queryName} **************`);
+  let res = await queryContract(terra, contractAddress, query);
+  const niceOutput = JSON.stringify(res, null, 4);
+  logToFile(logPath, niceOutput, "");
+  return res;
+}
+
+export async function getBlockTimeInSeconds(terra: LCDClient): Promise<number> {
+  let blockInfo = await terra.utils.lcd.tendermint.blockInfo();
+  let dateString = blockInfo.block.header.time;
+  let seconds = Date.parse(dateString);
+  let date = new Date(dateString);
+  // getTime return the date in milliseconds since January 1, 1970, 00:00:00 UTC.
+  return Math.round(date.getTime() / 1000);
 }

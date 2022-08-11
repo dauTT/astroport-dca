@@ -86,8 +86,8 @@ pub fn perform_dca_purchase(
     )?;
 
     Ok(Response::new()
-        .add_submessages(sub_messages)
         .add_messages(messages)
+        .add_submessages(sub_messages)
         .add_attributes(vec![
             attr("action", "perform_dca_purchase"),
             attr("dca_order_id", dca_order_id),

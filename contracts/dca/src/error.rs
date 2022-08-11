@@ -26,8 +26,12 @@ pub enum ContractError {
     #[error("Token has already been used to DCA")]
     AlreadyDeposited {},
 
-    #[error("DCA amount is not equal to allowance set by token '{token}'")]
-    InvalidTokenDeposit { token: String },
+    #[error("Aggreagate assets (source, tip, gas) amount ('{aggr_amount}') is greater than the allowance '{allowance}' set by token '{token_addr}' ")]
+    AllowanceCheckFail {
+        token_addr: String,
+        aggr_amount: String,
+        allowance: String,
+    },
 
     #[error("Invalid hop route through {token} due to token whitelist")]
     InvalidHopRoute { token: String },
