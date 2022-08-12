@@ -4,7 +4,7 @@ use crate::handlers::{
     update_config, withdraw, ModifyDcaOrderParameters,
 };
 use crate::queries::{get_config, get_dca_orders, get_user_dca_orders};
-use crate::state::{Config, CONFIG, TMP_CONTRACT_TARGET_BALANCE};
+use crate::state::{Config, CONFIG, TMP_CONTRACT_TARGET_GAS_BALANCE};
 use astroport::asset::addr_validate_to_lower;
 use astroport_dca::dca::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
@@ -49,6 +49,7 @@ pub fn instantiate(
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    // todo: check there are no duplicated in msg.whitelisted_tokens
     let config = Config {
         owner,
         max_hops: msg.max_hops,
@@ -61,7 +62,7 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
-    TMP_CONTRACT_TARGET_BALANCE.save(deps.storage, &None)?;
+    TMP_CONTRACT_TARGET_GAS_BALANCE.save(deps.storage, &None)?;
 
     Ok(Response::new())
 }
@@ -182,17 +183,14 @@ pub fn execute(
             gas,
             target_info,
         ),
-
         ExecuteMsg::Withdraw {
             withdraw_type,
             dca_order_id,
             asset,
         } => withdraw(deps, info, withdraw_type, dca_order_id, asset),
-
         ExecuteMsg::PerformDcaPurchase { dca_order_id, hops } => {
             perform_dca_purchase(deps, env, info, dca_order_id, hops)
         }
-
         ExecuteMsg::CancelDcaOrder { id } => cancel_dca_order(deps, info, id),
         ExecuteMsg::ModifyDcaOrder {
             id,

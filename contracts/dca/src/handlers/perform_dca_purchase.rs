@@ -14,7 +14,7 @@ use cw20::Cw20ExecuteMsg;
 
 use crate::{
     error::ContractError,
-    state::{Config, CONFIG, DCA_ORDERS, TMP_CONTRACT_TARGET_BALANCE},
+    state::{Config, CONFIG, DCA_ORDERS, TMP_CONTRACT_TARGET_GAS_BALANCE},
 };
 
 /// A `reply` call code ID of sub-message.
@@ -51,9 +51,9 @@ pub fn perform_dca_purchase(
         .per_hop_fee
         .checked_mul(Uint128::from(hops_len))?;
 
-    // Store the target asset balance of the dca contract before the
+    // Store the target/gas asset balance of the dca contract before the
     // execution of the purchase
-    store_dca_contract_target_balance(&mut deps, env.clone(), order.clone())?;
+    store_dca_contract_target_gas_balance(&mut deps, env.clone(), order.clone())?;
     sanity_checks(&env, &contract_config, &order, &hops, tip_cost.clone())?;
 
     // store messages to send in response
@@ -95,18 +95,18 @@ pub fn perform_dca_purchase(
         ]))
 }
 
-pub fn store_dca_contract_target_balance(
+pub fn store_dca_contract_target_gas_balance(
     deps: &mut DepsMut,
     env: Env,
     order: DcaInfo,
 ) -> Result<(), ContractError> {
-    TMP_CONTRACT_TARGET_BALANCE.update(deps.storage, |v| {
+    TMP_CONTRACT_TARGET_GAS_BALANCE.update(deps.storage, |v| {
         if v.is_some() {
             Err(StdError::generic_err(
                 "Too many purchase in queue! try later",
             ))
         } else {
-            // execute query to target asset
+            // find target asset balance
             let target_asset = order.balance.target.clone();
 
             let dca_contract_target_balance = query_asset_balance(
@@ -115,7 +115,20 @@ pub fn store_dca_contract_target_balance(
                 target_asset.info.clone(),
             )?;
 
-            Ok(Some((order.id(), dca_contract_target_balance)))
+            // find contract gas asset (uluna)
+            let gas_asset = order.balance.gas.clone();
+
+            let dca_contract_gas_balance = query_asset_balance(
+                &deps.querier,
+                env.contract.address.clone(),
+                gas_asset.info.clone(),
+            )?;
+
+            Ok(Some((
+                order.id(),
+                dca_contract_target_balance,
+                dca_contract_gas_balance,
+            )))
         }
     })?;
 
@@ -312,25 +325,39 @@ fn build_messages(
 /// * **_msg** is the object of type [`Reply`].
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> Result<Response, ContractError> {
-    let contract_target_balance_before_purchase = TMP_CONTRACT_TARGET_BALANCE.load(deps.storage)?;
+    let contract_target_gas_balance_before_purchase =
+        TMP_CONTRACT_TARGET_GAS_BALANCE.load(deps.storage)?;
 
-    match contract_target_balance_before_purchase.clone() {
+    match contract_target_gas_balance_before_purchase.clone() {
         None => return Err(ContractError::TmpContractTargetBalance {}),
-        Some((dca_order_id, target_balance_before_purchase)) => {
+        Some((dca_order_id, target_balance_before_purchase, gas_balance_before_purchase)) => {
             let mut order = DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.clone())?;
 
+            // update target amount
             let target_balance_after_purchase = query_asset_balance(
                 &deps.querier,
                 env.contract.address.clone(),
                 order.balance.target.info.clone(),
             )?;
-            let diff_amount = try_sub(
+            let diff_target_amount = try_sub(
                 target_balance_after_purchase,
                 target_balance_before_purchase,
             )?;
 
-            order.balance.target.amount = order.balance.target.amount + diff_amount.amount;
+            order.balance.target.amount = order.balance.target.amount + diff_target_amount.amount;
+
+            // update gas amount
+            let gas_balance_after_purchase = query_asset_balance(
+                &deps.querier,
+                env.contract.address.clone(),
+                order.balance.gas.info.clone(),
+            )?;
+            let diff_gas_amount = try_sub(gas_balance_before_purchase, gas_balance_after_purchase)?;
+
+            order.balance.gas.amount = order.balance.gas.amount - diff_gas_amount.amount;
+
             DCA_ORDERS.save(deps.storage, dca_order_id, &order)?;
+            TMP_CONTRACT_TARGET_GAS_BALANCE.save(deps.storage, &None)?;
 
             return Ok(Response::default());
         }

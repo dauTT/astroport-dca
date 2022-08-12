@@ -41,8 +41,9 @@ pub const DCA_ORDERS: Map<String, DcaInfo> = Map::new("DCA_ORDERS");
 // Every time a user create a DCA order, this variable will increase of 1.
 // This is needed create a unique id for the DCA orders.
 pub const LAST_DCA_ORDER_ID: Item<String> = Item::new("LAST_DCA_ORDER_ID");
-// Variable to store the temporare target balance of the DCA contract for a specific dca_order_id
+// Variable to store the temporare target/gas balance of the DCA contract for a specific dca_order_id
 // first element of the tuple: dca_order_id
 // second element of the tuple : contract target balance
-pub const TMP_CONTRACT_TARGET_BALANCE: Item<Option<(String, Asset)>> =
+// third element of the tuple : contract gas balance
+pub const TMP_CONTRACT_TARGET_GAS_BALANCE: Item<Option<(String, Asset, Asset)>> =
     Item::new("tmp_contract_target_balance");
