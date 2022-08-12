@@ -4,6 +4,7 @@ import { strictEqual } from "assert";
 import "dotenv/config";
 import {
   newClient,
+  newTestClient,
   writeArtifact,
   readArtifact,
   deployContract,
@@ -17,10 +18,8 @@ import {
   TokenAsset,
   getBlockTimeInSeconds,
 } from "../helpers.js";
-import { join } from "path";
 
-import { logToFile, deleteFile, TEST_LOGS_PATH } from "../util.js";
-import * as fs from "fs";
+import { logToFile } from "../util.js";
 
 import {
   Coin,
@@ -39,27 +38,17 @@ import {
   Wallet,
 } from "@terra-money/terra.js";
 
+import { initTestClient } from "./common.js";
+
 type Tests = {
   [key: string]: string;
 };
 
-export async function test_create_order_1_hop() {
-  // Wallet deriva from test1 account:
-  // LOCAL_TERRA_TEST_ACCOUNTS.test1 = terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v
-  const { terra, wallet } = newClient();
-  console.log(
-    `chainID: ${terra.config.chainID} wallet: ${wallet.key.accAddress}`
+export async function test_create_order_1() {
+  const { terra, wallet, network, logPath } = initTestClient(
+    "test_create_order_1",
+    "test1"
   );
-
-  // Tests summary will be read/written here in this json object: network
-  // Currently this json is located here: astroport_artifacts/localterra.json
-  // After running a test we write the result in the json.
-  // A test can be run only once.
-  // If one wants to run them again one need to restore to the initial setup:
-  //     i) Manually remove the tests portion of the localterra.json
-  //     ii) Remove the running docker container and re-run a fresh one again
-  const network = readArtifact("..", terra.config.chainID);
-  console.log("network:", network);
 
   if (!network.tests) {
     let tests: Tests = {};
@@ -67,10 +56,7 @@ export async function test_create_order_1_hop() {
   }
 
   // A test can be run only once.
-  if (!network.tests.test_create_order) {
-    // individual log for each test are located here:
-    let logPath = `${TEST_LOGS_PATH}/test_create_order_1_hop.log`;
-    deleteFile(logPath);
+  if (!network.tests.test_create_order_1) {
     try {
       let blocktime = await getBlockTimeInSeconds(terra);
       let queryName: String;
@@ -156,7 +142,7 @@ export async function test_create_order_1_hop() {
           start_at: blocktime + 10,
           target_info: new TokenAsset(network.tokenAddresses.BBB).getInfo(),
           tip: new TokenAsset(
-            network.tokenAddresses.AAA,
+            network.tokenAddresses.CCC,
             "10000000"
           ).getAsset(),
         },
@@ -319,7 +305,7 @@ export async function test_create_order_1_hop() {
       strictEqual(res.max_hops, null, "res.max_hops");
       strictEqual(res.max_spread, null, "res.max_spread");
 
-      network.tests.test_create_order_1_hop = "pass";
+      network.tests.test_create_order_1 = "pass";
     } catch (err) {
       console.error(err);
       logToFile(
@@ -327,9 +313,9 @@ export async function test_create_order_1_hop() {
         String(err) + ": " + JSON.stringify(err, null, 4),
         "*********** something bad happened: error **************"
       );
-      network.tests.test_create_order_1_hop = "fail";
+      network.tests.test_create_order_1 = "fail";
     }
 
-    writeArtifact(network, terra.config.chainID, "..");
+    writeArtifact(network, terra.config.chainID);
   }
 }

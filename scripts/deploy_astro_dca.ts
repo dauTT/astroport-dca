@@ -33,7 +33,7 @@ function init_msg(network: any): any {
       source: [
         new TokenAsset(network.tokenAddresses.AAA).getInfo(),
         new TokenAsset(network.tokenAddresses.BBB).getInfo(),
-        new TokenAsset(network.tokenAddresses.BBB).getInfo(),
+        new TokenAsset(network.tokenAddresses.DDD).getInfo(),
         new NativeAsset("uluna").getInfo(),
       ],
       tip: [

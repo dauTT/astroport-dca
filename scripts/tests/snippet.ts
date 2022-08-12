@@ -9,6 +9,7 @@ import {
   deployContract,
   executeContract,
   queryContract,
+  executeContractDebug,
   queryContractDebug,
   toEncodedBinary,
   performTransactions,
@@ -17,8 +18,9 @@ import {
 } from "../helpers.js";
 import { join } from "path";
 
-import { logToFile, deleteFile, TEST_LOGS_PATH } from "../util.js";
-import * as fs from "fs";
+import { logToFile, deleteFile, LOGS_PATH } from "../util.js";
+
+import { initTestClient } from "./common.js";
 
 import {
   Coin,
@@ -37,19 +39,29 @@ import {
   Wallet,
 } from "@terra-money/terra.js";
 
+// This is a kind of playground for designing concrete tests.
+// Create small runnable snippet here till you can aggregated them into a test
 async function main() {
-  const { terra, wallet } = newClient();
-  console.log(
-    `chainID: ${terra.config.chainID} wallet: ${wallet.key.accAddress}`
+  const { terra, wallet, network, logPath } = initTestClient(
+    "snippet",
+    "test1"
   );
-  const network = readArtifact("..", terra.config.chainID);
-  console.log("network:", network);
-
-  let logPath = `${TEST_LOGS_PATH}/queries.log`;
-  deleteFile(logPath);
 
   let queryName: String;
   let query: any;
+
+  queryName = "config dca";
+  query = {
+    config: {},
+  };
+
+  let res = await queryContractDebug(
+    terra,
+    network.DcaAddress,
+    query,
+    queryName,
+    logPath
+  );
 
   queryName = "pair: AAA-BBB";
   query = {
@@ -61,22 +73,9 @@ async function main() {
     },
   };
 
-  await queryContractDebug(
+  res = await queryContractDebug(
     terra,
     network.factoryAddress,
-    query,
-    queryName,
-    logPath
-  );
-
-  queryName = "pool: AAA-BBB";
-  query = {
-    pool: {},
-  };
-
-  await queryContractDebug(
-    terra,
-    network["poolAAA-BBB"],
     query,
     queryName,
     logPath

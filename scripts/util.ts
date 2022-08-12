@@ -1,8 +1,8 @@
 import * as fs from "fs";
 
+// starting from the  scripts folder:
 export const ARTIFACTS_PATH = "astroport_artifacts";
 export const LOGS_PATH = "logs";
-export const TEST_LOGS_PATH = "../logs";
 
 export const ASSET_CLASS = {
   token: "token",

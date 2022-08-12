@@ -26,16 +26,10 @@ import {
 } from "./util.js";
 
 // the prefixPath needs to be adjusted dependending where we are calling this function
-export function readArtifact(
-  prefixPath: string = "",
-  name: string = "artifact"
-) {
+export function readArtifact(name: string = "artifact") {
   try {
-    const prefixPathComplete =
-      prefixPath === "" ? ARTIFACTS_PATH : `${prefixPath}/${ARTIFACTS_PATH}`;
-    console.log(prefixPathComplete);
     const data = readFileSync(
-      path.join(prefixPathComplete, `${name}.json`),
+      path.join(ARTIFACTS_PATH, `${name}.json`),
       "utf8"
     );
     return JSON.parse(data);
@@ -78,16 +72,9 @@ export function newTestClient(testAccount: string): Client {
   return client;
 }
 
-export function writeArtifact(
-  data: object,
-  name: string = "artifact",
-  prefixPath: String = ""
-) {
-  const prefixPathComplete =
-    prefixPath === "" ? ARTIFACTS_PATH : `${prefixPath}/${ARTIFACTS_PATH}`;
-
+export function writeArtifact(data: object, name: string = "artifact") {
   writeFileSync(
-    path.join(prefixPathComplete, `${name}.json`),
+    path.join(ARTIFACTS_PATH, `${name}.json`),
     JSON.stringify(data, null, 2)
   );
 }
@@ -450,4 +437,20 @@ export async function getBlockTimeInSeconds(terra: LCDClient): Promise<number> {
   let date = new Date(dateString);
   // getTime return the date in milliseconds since January 1, 1970, 00:00:00 UTC.
   return Math.round(date.getTime() / 1000);
+}
+
+export async function executeContractDebug(
+  terra: LCDClient,
+  wallet: Wallet,
+  contractAddress: string,
+  msg: object,
+  coins: Coins.Input = [],
+  header: String,
+  logPath: fs.PathOrFileDescriptor
+) {
+  let res = await executeContract(terra, wallet, contractAddress, msg, coins);
+  const niceOutput = JSON.stringify(res, null, 4);
+  logToFile(logPath, niceOutput, `************** ${header} **************`);
+
+  return res;
 }

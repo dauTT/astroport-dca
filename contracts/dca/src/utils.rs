@@ -53,6 +53,7 @@ pub fn query_asset_balance(
     })
 }
 
+// Subtract asset2 to asset1
 pub fn try_sub(asset1: Asset, asset2: Asset) -> Result<Asset, ContractError> {
     if asset1.info != asset2.info {
         return Err(ContractError::InvalidInput {
