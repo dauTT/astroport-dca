@@ -16,8 +16,8 @@ target/
 .cargo-ok
 /artifacts/
 /contracts/**/schema/
+scripts/tests/localterra/config/write-file-atomic*
 
 # node_modules
 scripts/node_modules/*
-
-
+scripts/logs/*
