@@ -28,7 +28,7 @@ fi
 
 
 # set the image to run
-VERSION=v1.2.0
+VERSION=v1.1.0
 IMAGE=dautt/astroport:$VERSION
 CONTAINER_NAME=astroport_$VERSION
 
@@ -48,6 +48,20 @@ fi
 
 if [[ "$1" = "run" ]]; then
     docker run -d \
+        --name $CONTAINER_NAME \
+        -p 1317:1317 \
+        -p 26656:26656 \
+        -p 26657:26657 \
+        -p 9090:9090 \
+        -p 9091:9091 \
+        -v $PWD/config:/root/.terra/config \
+        $IMAGE ;
+
+    echo $CONTAINER_NAME
+fi
+
+if [[ "$1" = "run_print" ]]; then
+    docker run  \
         --name $CONTAINER_NAME \
         -p 1317:1317 \
         -p 26656:26656 \

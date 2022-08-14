@@ -10,5 +10,5 @@ use crate::state::{Config, CONFIG};
 /// ## Arguments
 /// * `deps` - A [`Deps`] that contains the dependencies.
 pub fn get_config(deps: Deps) -> StdResult<Config> {
-    CONFIG.load(deps.storage)
+    return CONFIG.load(deps.storage);
 }

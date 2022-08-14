@@ -1,6 +1,6 @@
 use astroport::asset::{Asset, AssetInfo};
 
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Decimal, SubMsgResponse, Uint128};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -34,16 +34,18 @@ pub struct Config {
 pub const CONFIG: Item<Config> = Item::new("config");
 /// The DCA orders for a user.
 /// The key is the user address and the value is the corresponding list of DCA order id.
-pub const USER_DCA_ORDERS: Map<&Addr, Vec<String>> = Map::new("USER_DCA_ORDERS");
+pub const USER_DCA_ORDERS: Map<&Addr, Vec<String>> = Map::new("user_dca_orders");
 // The DCA orders. The key is the DCA order id and the value is the information of DCA.
 // (For technical reason we can use Uint128 as key but instead use a String).
-pub const DCA_ORDERS: Map<String, DcaInfo> = Map::new("DCA_ORDERS");
+pub const DCA_ORDERS: Map<String, DcaInfo> = Map::new("dca_orders");
 // Every time a user create a DCA order, this variable will increase of 1.
 // This is needed create a unique id for the DCA orders.
-pub const LAST_DCA_ORDER_ID: Item<String> = Item::new("LAST_DCA_ORDER_ID");
-// Variable to store the temporare target/gas balance of the DCA contract for a specific dca_order_id
-// first element of the tuple: dca_order_id
-// second element of the tuple : contract target balance
-// third element of the tuple : contract gas balance
-pub const TMP_CONTRACT_TARGET_GAS_BALANCE: Item<Option<(String, Asset, Asset)>> =
+pub const LAST_DCA_ORDER_ID: Item<String> = Item::new("last_dca_order_id");
+// Variable to store the temporare gas balance of the DCA contract and tip cost for a specific dca_order_id
+// First element of the tuple: dca_order_id
+// Second element of the tuple : contract gas balance
+// Third element of the tuple : tip cost
+pub const TMP_GAS_BALANCE_AND_TIP_COST: Item<Option<(String, Asset, Asset)>> =
     Item::new("tmp_contract_target_balance");
+
+pub const SUB_MSG_DATA: Item<SubMsgResponse> = Item::new("sub_msg_data");

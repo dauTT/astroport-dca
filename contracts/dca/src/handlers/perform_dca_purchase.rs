@@ -1,20 +1,24 @@
 // use std::clone;
 
-use crate::utils::{query_asset_balance, try_sub};
+use std::str::FromStr;
+
+use crate::utils::query_asset_balance;
+use astroport::asset::Asset;
 use astroport::{
     asset::AssetInfo,
     router::{ExecuteMsg as RouterExecuteMsg, SwapOperation},
 };
 use astroport_dca::dca::DcaInfo;
 use cosmwasm_std::{
-    attr, entry_point, to_binary, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo,
-    Reply, ReplyOn, Response, StdError, SubMsg, Uint128, WasmMsg,
+    attr, entry_point, to_binary, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Event,
+    MessageInfo, Reply, ReplyOn, Response, StdError, SubMsg, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
+use schemars::Map;
 
 use crate::{
     error::ContractError,
-    state::{Config, CONFIG, DCA_ORDERS, TMP_CONTRACT_TARGET_GAS_BALANCE},
+    state::{Config, CONFIG, DCA_ORDERS, SUB_MSG_DATA, TMP_GAS_BALANCE_AND_TIP_COST},
 };
 
 /// A `reply` call code ID of sub-message.
@@ -50,10 +54,19 @@ pub fn perform_dca_purchase(
     let tip_cost = contract_config
         .per_hop_fee
         .checked_mul(Uint128::from(hops_len))?;
+    let tip_cost_asset = Asset {
+        info: order.balance.tip.info.clone(),
+        amount: tip_cost.clone(),
+    };
 
-    // Store the target/gas asset balance of the dca contract before the
-    // execution of the purchase
-    store_dca_contract_target_gas_balance(&mut deps, env.clone(), order.clone())?;
+    // Store the contract gas balance before the purchase and the tip cost
+    // This information will be used later to calculated the user gas fee.
+    store_contract_gas_balance_and_tip_cost(
+        &mut deps,
+        env.clone(),
+        order.clone(),
+        tip_cost_asset.clone(),
+    )?;
     sanity_checks(&env, &contract_config, &order, &hops, tip_cost.clone())?;
 
     // store messages to send in response
@@ -76,10 +89,10 @@ pub fn perform_dca_purchase(
                 order,
                 hops.clone(),
                 max_spread,
-                tip_cost.clone(),
+                tip_cost_asset.clone(),
             )?;
 
-            update_balance(order, &env, tip_cost.clone())?;
+            update_balance(order, &env, tip_cost_asset.clone())?;
 
             return Ok(order.clone());
         },
@@ -95,26 +108,18 @@ pub fn perform_dca_purchase(
         ]))
 }
 
-pub fn store_dca_contract_target_gas_balance(
+pub fn store_contract_gas_balance_and_tip_cost(
     deps: &mut DepsMut,
     env: Env,
     order: DcaInfo,
+    tip_cost: Asset,
 ) -> Result<(), ContractError> {
-    TMP_CONTRACT_TARGET_GAS_BALANCE.update(deps.storage, |v| {
+    TMP_GAS_BALANCE_AND_TIP_COST.update(deps.storage, |v| {
         if v.is_some() {
             Err(StdError::generic_err(
                 "Too many purchase in queue! try later",
             ))
         } else {
-            // find target asset balance
-            let target_asset = order.balance.target.clone();
-
-            let dca_contract_target_balance = query_asset_balance(
-                &deps.querier,
-                env.contract.address.clone(),
-                target_asset.info.clone(),
-            )?;
-
             // find contract gas asset (uluna)
             let gas_asset = order.balance.gas.clone();
 
@@ -124,11 +129,7 @@ pub fn store_dca_contract_target_gas_balance(
                 gas_asset.info.clone(),
             )?;
 
-            Ok(Some((
-                order.id(),
-                dca_contract_target_balance,
-                dca_contract_gas_balance,
-            )))
+            Ok(Some((order.id(), dca_contract_gas_balance, tip_cost)))
         }
     })?;
 
@@ -199,7 +200,7 @@ fn sanity_checks(
     Ok(())
 }
 
-fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(), ContractError> {
+fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Asset) -> Result<(), ContractError> {
     // subtract dca_amount from order and update last_purchase time
     order.balance.source.amount = order
         .balance
@@ -224,10 +225,13 @@ fn update_balance(order: &mut DcaInfo, env: &Env, tip_cost: Uint128) -> Result<(
         .balance
         .tip
         .amount
-        .checked_sub(tip_cost)
+        .checked_sub(tip_cost.amount)
         .map_err(|_| ContractError::InsufficientBalance {})?;
 
     order.balance.last_purchase = env.block.time.seconds();
+
+    // Update gas balance
+    // This is done in the reply method below.
 
     Ok(())
 }
@@ -239,7 +243,7 @@ fn build_messages(
     order: &mut DcaInfo,
     hops: Vec<SwapOperation>,
     max_spread: Decimal,
-    tip_cost: Uint128,
+    tip_cost: Asset,
 ) -> Result<(Vec<SubMsg>, Vec<CosmosMsg>), ContractError> {
     let mut messages: Vec<CosmosMsg> = Vec::new();
     let mut sub_messages: Vec<SubMsg> = vec![];
@@ -288,12 +292,12 @@ fn build_messages(
     });
 
     // add tip payment to messages
-    match &order.balance.tip.info {
+    match &tip_cost.info {
         AssetInfo::NativeToken { denom } => messages.push(
             BankMsg::Send {
                 to_address: info.sender.to_string(),
                 amount: vec![Coin {
-                    amount: tip_cost,
+                    amount: tip_cost.amount,
                     denom: denom.to_string(),
                 }],
             }
@@ -305,7 +309,7 @@ fn build_messages(
                 funds: vec![],
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: info.sender.to_string(),
-                    amount: tip_cost,
+                    amount: tip_cost.amount,
                 })?,
             }
             .into(),
@@ -324,44 +328,247 @@ fn build_messages(
 ///
 /// * **_msg** is the object of type [`Reply`].
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> Result<Response, ContractError> {
-    let contract_target_gas_balance_before_purchase =
-        TMP_CONTRACT_TARGET_GAS_BALANCE.load(deps.storage)?;
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    let sub_msg_res = msg.clone().result.unwrap();
+    let events = sub_msg_res.events;
 
-    match contract_target_gas_balance_before_purchase.clone() {
+    let gas_and_tip = TMP_GAS_BALANCE_AND_TIP_COST.load(deps.storage)?;
+
+    match gas_and_tip.clone() {
         None => return Err(ContractError::TmpContractTargetBalance {}),
-        Some((dca_order_id, target_balance_before_purchase, gas_balance_before_purchase)) => {
+        Some((dca_order_id, contract_gas_before_purchase, tip_cost)) => {
             let mut order = DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.clone())?;
 
-            // update target amount
-            let target_balance_after_purchase = query_asset_balance(
-                &deps.querier,
-                env.contract.address.clone(),
-                order.balance.target.info.clone(),
+            // Update target balance
+            let target_amount_from_purchase =
+                get_target_amount_from_purchase(&env, order.clone(), events)?;
+
+            order.balance.target.amount = order.balance.target.amount + target_amount_from_purchase;
+
+            // Update gas balance:
+
+            let (
+                order_gas_fee,
+                contract_gas_before_purchase_2,
+                tip_cost_2,
+                target_amount_from_purchase_2,
+                contract_gas_balance_after_purchase_2,
+            ) = calculate_oder_gas_fee(
+                &deps,
+                &env,
+                &order,
+                contract_gas_before_purchase.clone(),
+                tip_cost.clone(),
+                target_amount_from_purchase,
             )?;
-            let diff_target_amount = try_sub(
-                target_balance_after_purchase,
-                target_balance_before_purchase,
-            )?;
+            order.balance.gas.amount = order.balance.gas.amount + order_gas_fee;
 
-            order.balance.target.amount = order.balance.target.amount + diff_target_amount.amount;
+            DCA_ORDERS.save(deps.storage, dca_order_id.clone(), &order)?;
+            TMP_GAS_BALANCE_AND_TIP_COST.save(deps.storage, &None)?;
 
-            // update gas amount
-            let gas_balance_after_purchase = query_asset_balance(
-                &deps.querier,
-                env.contract.address.clone(),
-                order.balance.gas.info.clone(),
-            )?;
-            let diff_gas_amount = try_sub(gas_balance_before_purchase, gas_balance_after_purchase)?;
+            let mut data = msg.result.unwrap();
 
-            order.balance.gas.amount = order.balance.gas.amount - diff_gas_amount.amount;
+            let e = Event::new("my_event")
+                .add_attribute("target_amount-purchase", target_amount_from_purchase)
+                .add_attribute("order_gas_fee", order_gas_fee)
+                .add_attribute(
+                    "contract_gas_before_purchase_2",
+                    contract_gas_before_purchase_2.to_string(),
+                )
+                .add_attribute("tip_cost_2", tip_cost_2.to_string())
+                .add_attribute(
+                    "target_amount_from_purchase_2",
+                    target_amount_from_purchase_2.to_string(),
+                )
+                .add_attribute(
+                    "contract_gas_balance_after_purchase_2",
+                    contract_gas_balance_after_purchase_2.to_string(),
+                )
+                .add_attribute("tip_cost", tip_cost.to_string());
+            data.events.push(e);
 
-            DCA_ORDERS.save(deps.storage, dca_order_id, &order)?;
-            TMP_CONTRACT_TARGET_GAS_BALANCE.save(deps.storage, &None)?;
+            SUB_MSG_DATA.save(deps.storage, &data)?;
 
             return Ok(Response::default());
         }
+    }
+    /*
+
+    let data = msg.result.unwrap();
+    TMP_CONTRACT_TARGET_GAS_BALANCE.save(deps.storage, &None)?;
+    SUB_MSG_DATA.save(deps.storage, &data)?;
+    Ok(Response::default())
+    */
+}
+
+fn get_swap_events(
+    //   deps: &DepsMut,
+    //   order: DcaInfo,
+    events: Vec<Event>,
+) -> Result<Vec<Event>, ContractError> {
+    let swap_events = events
+        .into_iter()
+        .filter(|event| {
+            event.ty == "wasm"
+                && event.attributes[1].key == "action"
+                && event.attributes[1].value == "swap"
+        })
+        .collect::<Vec<Event>>();
+
+    let l = swap_events.len();
+    if l == 0 {
+        return Err(ContractError::InvalidSwapOperations {
+            msg: "The router didn't perform any swaps!".to_string(),
+        });
+    }
+    // check_spread_threshold_condition(deps, order, swap_events.clone())?;
+
+    Ok(swap_events)
+}
+fn check_spread_threshold_condition(
+    deps: &DepsMut,
+    order: DcaInfo,
+    swap_events: Vec<Event>,
+) -> Result<(), ContractError> {
+    let mut max_spread_op = order.max_spread;
+    if max_spread_op == None {
+        let config = CONFIG.load(deps.storage)?;
+        max_spread_op = Some(config.max_spread);
+    }
+    let max_spread = max_spread_op.unwrap();
+
+    let swap_spreads = swap_events
+        .into_iter()
+        .map(|e| {
+            (
+                e.attributes
+                    .clone()
+                    .into_iter()
+                    .find(|a| a.key == "offer_amount")
+                    .clone()
+                    .expect(&"no attribute 'offer_amount' in the swap event")
+                    .value,
+                e.attributes
+                    .into_iter()
+                    .find(|a| a.key == "spread_amount")
+                    .expect(&"no attribute 'spread_amount' in the swap event")
+                    .value,
+            )
+        })
+        .map(|s| (Uint128::from_str(&s.0).ok(), Uint128::from_str(&s.1).ok()))
+        .collect::<Vec<(Option<Uint128>, Option<Uint128>)>>();
+
+    for (offer_amount_op, spread_amount_op) in swap_spreads {
+        let offer_amount = offer_amount_op.ok_or(ContractError::InvalidInput {
+            msg: format!("Could not parse offer_amount:{:?}", offer_amount_op),
+        })?;
+
+        let spread_amount = spread_amount_op.ok_or(ContractError::InvalidInput {
+            msg: format!("Could not parse spread_amount:{:?}", spread_amount_op),
+        })?;
+        let swap_spread_ratio = Decimal::from_ratio(spread_amount, offer_amount);
+
+        if swap_spread_ratio.gt(&max_spread) {
+            return Err(ContractError::MaxSpreadCheckFail {
+                max_spread: max_spread.to_string(),
+                swap_spread: swap_spread_ratio.to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn get_target_amount_from_purchase(
+    env: &Env,
+    order: DcaInfo,
+    events: Vec<Event>,
+) -> Result<Uint128, ContractError> {
+    let swap_events = get_swap_events(events)?;
+    let l = swap_events.len();
+    let last_swap = &swap_events[l - 1];
+
+    let ls_map = last_swap
+        .attributes
+        .clone()
+        .into_iter()
+        .map(|a| (a.key, a.value))
+        .collect::<Map<String, String>>();
+
+    let ask_asset = match order.balance.target.info {
+        AssetInfo::Token { contract_addr } => contract_addr.to_string(),
+        AssetInfo::NativeToken { denom } => denom.to_string(),
     };
+
+    let expected_data = vec![
+        ("receiver", env.contract.address.to_string()),
+        ("ask_asset", ask_asset),
+    ];
+
+    // sanity checks:
+    for (key, value) in expected_data {
+        match ls_map.get(key) {
+            None => {
+                return Err(ContractError::InvalidSwapOperations {
+                    msg: format!("Attribute with key={:} is missing in the lst swap ", key),
+                })
+            }
+            Some(map_value) => {
+                if map_value != &value {
+                    return Err(ContractError::InvalidSwapOperations {
+                                msg: format!(
+                                    "Invalid attribute in the last swap: (key={:}, value={:}). Expected value={:} ",
+                                    key, map_value, value
+                                ),
+                            });
+                }
+            }
+        }
+    }
+
+    let target_amount_op = ls_map.get("return_amount");
+
+    match target_amount_op {
+        None => {
+            return Err(ContractError::InvalidSwapOperations {
+                msg: format!("Attribute with key='return_amount' is missing in the last swap"),
+            })
+        }
+        Some(target_amount) => return Ok(Uint128::from_str(target_amount)?),
+    }
+}
+
+fn calculate_oder_gas_fee(
+    deps: &DepsMut,
+    env: &Env,
+    order: &DcaInfo,
+    contract_gas_before_purchase: Asset,
+    tip_cost: Asset,
+    target_amount_from_purchase: Uint128,
+) -> Result<(Uint128, Uint128, Uint128, Uint128, Uint128), ContractError> {
+    //  contract_gas_balance_before_purchase - (order gas fee) - (order tip_cost)? + (order target)? = contract_gas_balance_after_purchase
+    //  => (order gas fee) = contract_gas_balance_before_purchase  - (order tip_cost)? + (order target)? - contract_gas_balance_after_purchase
+    let contract_gas_balance_after_purchase = query_asset_balance(
+        &deps.querier,
+        env.contract.address.clone(), // dca contract
+        order.balance.gas.info.clone(),
+    )?;
+
+    let mut temp_gas_balance = contract_gas_before_purchase.amount.clone();
+    if &order.balance.gas.info == &tip_cost.info {
+        temp_gas_balance = temp_gas_balance - tip_cost.amount
+    }
+    if &order.balance.gas.info == &order.balance.target.info {
+        temp_gas_balance = temp_gas_balance + target_amount_from_purchase
+    }
+
+    let order_gas_fee = temp_gas_balance - contract_gas_balance_after_purchase.amount;
+    Ok((
+        order_gas_fee,
+        contract_gas_before_purchase.amount,
+        tip_cost.amount,
+        target_amount_from_purchase,
+        contract_gas_balance_after_purchase.amount,
+    ))
 }
 
 #[cfg(test)]

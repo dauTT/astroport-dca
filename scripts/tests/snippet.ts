@@ -11,6 +11,7 @@ import {
   queryContract,
   executeContractDebug,
   queryContractDebug,
+  queryBankDebug,
   toEncodedBinary,
   performTransactions,
   NativeAsset,
@@ -62,7 +63,7 @@ async function main() {
     queryName,
     logPath
   );
-
+  /*
   queryName = "pair: AAA-BBB";
   query = {
     pair: {
@@ -76,6 +77,31 @@ async function main() {
   res = await queryContractDebug(
     terra,
     network.factoryAddress,
+    query,
+    queryName,
+    logPath
+  );
+
+*/
+
+  queryName = "lunabalance dca address";
+  await queryBankDebug(terra, network.DcaAddress, queryName, logPath);
+
+  queryName = "dca_orders with id =2 ";
+  query = { dca_orders: { id: "2" } };
+  await queryContractDebug(
+    terra,
+    network.DcaAddress,
+    query,
+    queryName,
+    logPath
+  );
+
+  queryName = "sub_msg ";
+  query = { reply_sub_msg_response: {} };
+  await queryContractDebug(
+    terra,
+    network.DcaAddress,
     query,
     queryName,
     logPath

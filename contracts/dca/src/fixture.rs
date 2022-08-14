@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub mod fixture {
     use crate::state::{
-        Config, CONFIG, DCA_ORDERS, LAST_DCA_ORDER_ID, TMP_CONTRACT_TARGET_GAS_BALANCE,
+        Config, CONFIG, DCA_ORDERS, LAST_DCA_ORDER_ID, TMP_GAS_BALANCE_AND_TIP_COST,
         USER_DCA_ORDERS,
     };
     use astroport::asset::{Asset, AssetInfo, ULUNA_DENOM};
@@ -20,7 +20,7 @@ pub mod fixture {
         // save state
         let mut store = MockStorage::new();
         _ = CONFIG.save(&mut store, &config);
-        _ = TMP_CONTRACT_TARGET_GAS_BALANCE.save(&mut store, &None);
+        _ = TMP_GAS_BALANCE_AND_TIP_COST.save(&mut store, &None);
         _ = LAST_DCA_ORDER_ID.save(&mut store, &"2".to_string());
 
         // save USER_DCA_ORDERS to storage

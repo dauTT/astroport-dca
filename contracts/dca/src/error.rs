@@ -33,6 +33,18 @@ pub enum ContractError {
         allowance: String,
     },
 
+    #[error("Unable to extraget the target amount from the reply object")]
+    ParseReplySubMsgForPerformDcaPurhcase {},
+
+    #[error("InvalidSwapOperations: '{msg}'")]
+    InvalidSwapOperations { msg: String },
+
+    #[error("Max_spread='{max_spread}' check fail. Got one swap_spread='{swap_spread}'")]
+    MaxSpreadCheckFail {
+        max_spread: String,
+        swap_spread: String,
+    },
+
     #[error("Invalid hop route through {token} due to token whitelist")]
     InvalidHopRoute { token: String },
 

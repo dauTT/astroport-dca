@@ -1,4 +1,4 @@
-import { strictEqual, equal } from "assert";
+import { strictEqual } from "assert";
 import {
   writeArtifact,
   queryContractDebug,
@@ -22,12 +22,6 @@ export async function test_query_invalid_dca_order_id_2() {
       query,
       queryName,
       logPath
-    );
-
-    logToFile(
-      logPath,
-      JSON.stringify(res, null, 4),
-      "********** res ******** "
     );
 
     if (!network.tests.test_invalid_dca_order_id) {
@@ -99,6 +93,46 @@ export async function test_query_get_config() {
       "*********** something bad happened: error **************"
     );
     network.tests.test_query_get_config = "fail";
+  }
+  writeArtifact(network, terra.config.chainID);
+}
+
+export async function test_query_get_user_dca_orders() {
+  let testName = "test_query_get_user_dca_orders";
+  const { terra, wallet, network, logPath } = initTestClient(testName, "test1");
+
+  try {
+    if (!network.tests.test_query_get_user_dca_orders) {
+      let queryName = `Query all the dca orders of test1 user: ${wallet.key.accAddress}`;
+      let query = { user_dca_orders: { user: wallet.key.accAddress } };
+
+      let res = await queryContractDebug(
+        terra,
+        network.DcaAddress,
+        query,
+        queryName,
+        logPath
+      );
+      strictEqual(
+        res[0],
+        "1",
+        "It should match with the dca_order_id=1, which was created in test_create_order_1. Make sure to execute the tests in order via the main.ts file"
+      );
+      strictEqual(
+        res[1],
+        "2",
+        "It should match with the dca_order_id=2, which was created in test_create_order_2. Make sure to execute the tests in order via the main.ts file"
+      );
+      network.tests.test_query_get_user_dca_orders = "pass";
+    }
+  } catch (err) {
+    console.error(err);
+    logToFile(
+      logPath,
+      String(err) + ": " + JSON.stringify(err, null, 4),
+      "*********** something bad happened: error **************"
+    );
+    network.tests.test_query_get_user_dca_orders = "fail";
   }
   writeArtifact(network, terra.config.chainID);
 }

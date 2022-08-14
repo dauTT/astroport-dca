@@ -248,12 +248,18 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Returns information about the users current active DCA orders in a [`Vec<DcaInfo>`] object.
-    UserDcaOrders { user: String },
+    UserDcaOrders {
+        user: String,
+    },
 
     /// Returns information about DCA orders in a [`DcaInfo`]object.
-    DcaOrders { id: String },
+    DcaOrders {
+        id: String,
+    },
     /// Returns information about the contract configuration in a [`Config`] object.
     Config {},
+
+    ReplySubMsgResponse {},
 }
 
 /// This structure describes a migration message.

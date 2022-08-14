@@ -3,12 +3,13 @@ use crate::handlers::{
     cancel_dca_order, create_dca_order, deposit, modify_dca_order, perform_dca_purchase,
     update_config, withdraw, ModifyDcaOrderParameters,
 };
-use crate::queries::{get_config, get_dca_orders, get_user_dca_orders};
-use crate::state::{Config, CONFIG, TMP_CONTRACT_TARGET_GAS_BALANCE};
+use crate::queries::{get_config, get_dca_orders, get_sub_msg_data, get_user_dca_orders};
+use crate::state::{Config, CONFIG, SUB_MSG_DATA, TMP_GAS_BALANCE_AND_TIP_COST};
 use astroport::asset::addr_validate_to_lower;
 use astroport_dca::dca::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    SubMsgResponse,
 };
 use cw2::set_contract_version;
 use std::str::FromStr;
@@ -62,7 +63,14 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
-    TMP_CONTRACT_TARGET_GAS_BALANCE.save(deps.storage, &None)?;
+    TMP_GAS_BALANCE_AND_TIP_COST.save(deps.storage, &None)?;
+
+    let r: SubMsgResponse = SubMsgResponse {
+        data: None,
+        events: vec![],
+    };
+
+    SUB_MSG_DATA.save(deps.storage, &r)?;
 
     Ok(Response::new())
 }
@@ -246,5 +254,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::UserDcaOrders { user } => to_binary(&get_user_dca_orders(deps, user)?),
         //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
         QueryMsg::DcaOrders { id } => to_binary(&get_dca_orders(deps, id)?),
+        QueryMsg::ReplySubMsgResponse {} => to_binary(&get_sub_msg_data(deps)?),
     }
 }
