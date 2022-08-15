@@ -388,20 +388,9 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
             return Ok(Response::default());
         }
     }
-    /*
-
-    let data = msg.result.unwrap();
-    TMP_CONTRACT_TARGET_GAS_BALANCE.save(deps.storage, &None)?;
-    SUB_MSG_DATA.save(deps.storage, &data)?;
-    Ok(Response::default())
-    */
 }
 
-fn get_swap_events(
-    //   deps: &DepsMut,
-    //   order: DcaInfo,
-    events: Vec<Event>,
-) -> Result<Vec<Event>, ContractError> {
+fn get_swap_events(events: Vec<Event>) -> Result<Vec<Event>, ContractError> {
     let swap_events = events
         .into_iter()
         .filter(|event| {
@@ -417,61 +406,8 @@ fn get_swap_events(
             msg: "The router didn't perform any swaps!".to_string(),
         });
     }
-    // check_spread_threshold_condition(deps, order, swap_events.clone())?;
 
     Ok(swap_events)
-}
-fn check_spread_threshold_condition(
-    deps: &DepsMut,
-    order: DcaInfo,
-    swap_events: Vec<Event>,
-) -> Result<(), ContractError> {
-    let mut max_spread_op = order.max_spread;
-    if max_spread_op == None {
-        let config = CONFIG.load(deps.storage)?;
-        max_spread_op = Some(config.max_spread);
-    }
-    let max_spread = max_spread_op.unwrap();
-
-    let swap_spreads = swap_events
-        .into_iter()
-        .map(|e| {
-            (
-                e.attributes
-                    .clone()
-                    .into_iter()
-                    .find(|a| a.key == "offer_amount")
-                    .clone()
-                    .expect(&"no attribute 'offer_amount' in the swap event")
-                    .value,
-                e.attributes
-                    .into_iter()
-                    .find(|a| a.key == "spread_amount")
-                    .expect(&"no attribute 'spread_amount' in the swap event")
-                    .value,
-            )
-        })
-        .map(|s| (Uint128::from_str(&s.0).ok(), Uint128::from_str(&s.1).ok()))
-        .collect::<Vec<(Option<Uint128>, Option<Uint128>)>>();
-
-    for (offer_amount_op, spread_amount_op) in swap_spreads {
-        let offer_amount = offer_amount_op.ok_or(ContractError::InvalidInput {
-            msg: format!("Could not parse offer_amount:{:?}", offer_amount_op),
-        })?;
-
-        let spread_amount = spread_amount_op.ok_or(ContractError::InvalidInput {
-            msg: format!("Could not parse spread_amount:{:?}", spread_amount_op),
-        })?;
-        let swap_spread_ratio = Decimal::from_ratio(spread_amount, offer_amount);
-
-        if swap_spread_ratio.gt(&max_spread) {
-            return Err(ContractError::MaxSpreadCheckFail {
-                max_spread: max_spread.to_string(),
-                swap_spread: swap_spread_ratio.to_string(),
-            });
-        }
-    }
-    Ok(())
 }
 
 fn get_target_amount_from_purchase(
