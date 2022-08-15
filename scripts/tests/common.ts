@@ -1,13 +1,24 @@
 import { strictEqual } from "assert";
-
 import {
   newClient,
   newTestClient,
+  writeArtifact,
   readArtifact,
+  deployContract,
+  executeContract,
+  queryContract,
+  executeContractDebug,
   queryContractDebug,
+  queryBankDebug,
+  toEncodedBinary,
+  performTransactions,
+  NativeAsset,
+  TokenAsset,
+  Asset,
 } from "../helpers.js";
 
 import { LCDClient, Wallet } from "@terra-money/terra.js";
+import { getTokenBalance } from "./snippet.js";
 
 import {
   logToFile,
@@ -17,7 +28,7 @@ import {
 } from "../util.js";
 
 // One of the test address in LOCAL_TERRA_TEST_ACCOUNTS
-type TestAccount =
+export type TestAccount =
   | "test0"
   | "test1"
   | "test2"
@@ -75,7 +86,7 @@ export function initTestClient(
 
 export async function getDcaConfig(
   terra: LCDClient,
-  dcaAddress: any,
+  network: any,
   logPath: string
 ): Promise<any> {
   let queryName = "config dca";
@@ -85,10 +96,115 @@ export async function getDcaConfig(
 
   let res = await queryContractDebug(
     terra,
-    dcaAddress,
+    network.DcaAddress,
     query,
     queryName,
     logPath
   );
   return res;
+}
+
+export async function checkDcaOrderBalance(
+  terra: LCDClient,
+  logPath: string,
+  DcaAddress: string,
+  source: Asset,
+  spent: Asset,
+  target: Asset,
+  gas: Asset,
+  tip: Asset,
+  dca_order_id: string,
+  queryName: string
+) {
+  let keys = ["source", "spent", "target", "gas", "tip"];
+  let values = [
+    source.getAsset(),
+    spent.getAsset(),
+    target.getAsset(),
+    gas.getAsset(),
+    tip.getAsset(),
+  ];
+
+  let expectedBalance: { [key: string]: any } = {};
+  keys.forEach((key, i) => (expectedBalance[key] = values[i]));
+
+  let query = {
+    dca_orders: { id: dca_order_id },
+  };
+
+  let res = await queryContractDebug(
+    terra,
+    DcaAddress,
+    query,
+    queryName,
+    logPath
+  );
+
+  keys.forEach((key) => {
+    if (expectedBalance[key].info.hasOwnProperty("token")) {
+      strictEqual(
+        res.balance[key].info.token.contract_addr,
+        expectedBalance[key].info.token.contract_addr,
+        `Check ${key} address`
+      );
+    } else {
+      strictEqual(
+        res.balance[key].info.native_token.denom,
+        expectedBalance[key].info.native_token.denom,
+        `Check ${key} denom`
+      );
+    }
+
+    strictEqual(
+      res.balance[key].amount,
+      expectedBalance[key].amount,
+      `Check ${key} amount`
+    );
+  });
+}
+
+export async function checkUserAssetBalance(
+  terra: LCDClient,
+  logPath: string,
+  testAccount: string,
+  assets: Asset[],
+  queryName: string
+) {
+  logToFile(logPath, "", queryName);
+  let userAddress = LOCAL_TERRA_TEST_ACCOUNTS[testAccount].addr;
+  assets.forEach(async (asset) => {
+    let expected_amount = asset.getAsset().amount;
+    if (asset.getInfo().hasOwnProperty("token")) {
+      let token_addr = asset.getInfo().token.contract_addr;
+      let res = await getTokenBalance(
+        terra,
+        asset.getInfo().token.contract_addr,
+        userAddress,
+        logPath
+      );
+      strictEqual(
+        res.balance,
+        asset.getAsset().amount,
+        `Balance of token=${token_addr}: actual=${res.balance}, expected=${expected_amount}`
+      );
+    } else {
+      let res = await queryBankDebug(
+        terra,
+        userAddress,
+        " natives balance",
+        logPath
+      );
+
+      console.log("XXXXXXXXXXXXXXXX: ", res[0]._coins["uluna"].amount);
+      console.log("XXXXXXXXXXXXXXXX: ", res[0]._coins["uluna"].amount);
+      // todo: treat the general case where there a more coins than luna
+      let denom = asset.getInfo().native_token.denom;
+      let actual_amount = res[0]._coins[denom].amount;
+      strictEqual(
+        res[0]._coins[denom].amount.toString(),
+        expected_amount,
+        `Balance of ${denom}: actual=${actual_amount}, expected=${expected_amount}`
+      );
+    }
+  });
 }
