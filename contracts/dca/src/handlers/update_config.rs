@@ -1,7 +1,6 @@
+use crate::{error::ContractError, state::CONFIG};
 use astroport::asset::AssetInfo;
 use cosmwasm_std::{attr, Addr, Decimal, DepsMut, MessageInfo, Response, StdError, Uint128};
-
-use crate::{error::ContractError, state::CONFIG};
 
 /// ## Description
 /// Updates the contract configuration with the specified optional parameters.
@@ -20,14 +19,19 @@ use crate::{error::ContractError, state::CONFIG};
 /// * `max_hops` - An optional value which represents the new maximum amount of hops per swap if the
 /// user does not specify a value.
 ///
-/// * `per_hop_fee` - An optional [`Uint128`] which represents the new uusd fee paid to bots per hop
+/// * `per_hop_fee` - An optional [`Uint128`] which represents the new tip asset fee paid to bots per hop
 /// executed in a DCA purchase.
 ///
-/// * `whitelisted_tokens` - An optional [`Vec<AssetInfo>`] which represents the new whitelisted
-/// tokens that can be used in a hop route for DCA purchases.
+/// * `whitelisted_tokens_source` - An optional [`Vec<AssetInfo>`] which represents the new whitelisted
+/// source tokens that can be used in a hop route for DCA purchases.
+///
+///* `whitelisted_tokens_tip` - An optional [`Vec<AssetInfo>`] which represents the new whitelisted
+/// tip tokens that can be used to reward the bot executing the purchase.
 ///
 /// * `max_spread` - An optional [`Decimal`] which represents the new maximum spread for each DCA
 /// purchase if the user does not specify a value.
+///
+/// * `router_addr` - An optional [`Addr`] which represents the router to use for the swap operations
 pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -79,18 +83,16 @@ pub fn update_config(
 
 #[cfg(test)]
 mod tests {
+    use crate::contract::execute;
+    use crate::fixture::fixture::mock_storage_valid_data;
     use crate::state::CONFIG;
     use astroport::asset::AssetInfo;
     use astroport_dca::dca::ExecuteMsg;
-
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
         Empty, Response,
     };
-
-    use crate::contract::execute;
-    use crate::fixture::fixture::mock_storage_valid_data;
 
     #[test]
     // deposit assets are whitelisted

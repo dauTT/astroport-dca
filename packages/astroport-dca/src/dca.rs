@@ -2,10 +2,9 @@ use astroport::{
     asset::{Asset, AssetInfo},
     router::SwapOperation,
 };
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use cosmwasm_std::{Addr, Decimal, Uint128};
 
 /// Describes information about a DCA order
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -127,7 +126,8 @@ pub struct InstantiateMsg {
     pub whitelisted_tokens: WhitelistedTokens,
     /// The maximum amount of spread
     pub max_spread: String,
-    /// The address of the Astroport factory contract
+    /// The address of the Astroport factory contract.
+    /// TODO: delete this address. It is not needed!
     pub factory_addr: String,
     /// The address of the Astroport router contract
     pub router_addr: String,
@@ -135,7 +135,7 @@ pub struct InstantiateMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WhitelistedTokens {
-    // Token which can be by the user as source asset in the DCA contract to purchase the target asset
+    // Token which can be used by the user as source asset in the DCA contract to purchase the target asset
     pub source: Vec<AssetInfo>,
     // Token which can be used by the user to reward a bot for
     // executing DCA orders. We assume this token are stablecoin like USDT or USDC
@@ -161,7 +161,7 @@ pub enum ExecuteMsg {
     /// Creates a new DCA order where `dca_amount` of token `initial_asset` will purchase
     /// `target_asset` every `interval`
     ///
-    /// If `initial_asset` is a Cw20 token, the user needs to have increased the allowance prior to
+    /// If `source asset` or `tip asset` are a Cw20 token, the user needs to have increased the allowance prior to
     /// calling this execution
     CreateDcaOrder {
         start_at: u64,
@@ -210,15 +210,6 @@ pub enum ExecuteMsg {
         router_addr: Option<Addr>,
     },
 
-    /*
-    /// Update the configuration for a user
-    UpdateUserConfig {
-        /// The maximum amount of hops per swap
-        max_hops: Option<u32>,
-        /// The maximum spread per token when performing DCA purchases
-        max_spread: Option<Decimal>,
-    },
-    */
     /// Withdraws a users bot tip from the contract.
     Withdraw {
         // The type of asset
@@ -247,18 +238,18 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    /// Returns information about the users current active DCA orders in a [`Vec<DcaInfo>`] object.
-    UserDcaOrders {
-        user: String,
-    },
+    /// Returns information about the users current active DCA order ids in a [`Vec<String>`] object.
+    UserDcaOrders { user: String },
 
-    /// Returns information about DCA orders in a [`DcaInfo`]object.
-    DcaOrders {
-        id: String,
-    },
+    /// Returns information about DCA orders in a [`DcaInfo`] object.
+    /// TODO: Use singular instead of plural. The field should be renamed `DcaOder`
+    DcaOrders { id: String },
     /// Returns information about the contract configuration in a [`Config`] object.
     Config {},
 
+    /// This message is used only for debugging purposes.
+    /// Return the informaton about the swap operations and specifically how much
+    /// target amount we got from the swaps.
     ReplySubMsgResponse {},
 }
 
@@ -266,16 +257,3 @@ pub enum QueryMsg {
 /// We currently take no arguments for migrations.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrateMsg {}
-
-/// Describes information for a UserDcaOrders query
-///
-/// Contains both the user DCA order and the cw20 token allowance, or, if the initial asset is a
-/// native token, the balance.
-///
-/// This is useful for bots and front-end to distinguish between a users token allowance (which may
-/// have changed) for the DCA contract, and the created DCA order size.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct DcaQueryInfo {
-    pub token_allowance: Uint128,
-    pub info: DcaInfo,
-}

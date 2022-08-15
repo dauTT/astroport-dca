@@ -50,7 +50,7 @@ pub fn instantiate(
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // todo: check there are no duplicated in msg.whitelisted_tokens
+    // TODO:  make sure there a no duplicated in msg.whitelisted_tokens
     let config = Config {
         owner,
         max_hops: msg.max_hops,
@@ -100,42 +100,54 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Respons
 /// * `msg` - The [`ExecuteMsg`] to run.
 ///
 /// ## Execution Messages
-/// * **ExecuteMsg::AddBotTip { }** Adds a bot tip to fund DCA purchases.
-///
-/// * **ExecuteMsg::CancelDcaOrder { initial_asset }** Cancels an existing DCA order.
-///
-/// * **ExecuteMsg::CreateDcaOrder {
-///         initial_asset,
-///         target_asset,
-///         interval,
-///         dca_amount
-///     }** Creates a new DCA order where `initial_asset` will purchase `target_asset`.
-///
-/// * **ExecuteMsg::ModifyDcaOrder {
-///         old_initial_asset,
-///         new_initial_asset,
-///         new_target_asset,
-///         new_interval,
-///         new_dca_amount,
-///         should_reset_purchase_time,
-///     }** Modifies an existing DCA order, allowing the user to change certain parameters.
-///
-/// * **ExecuteMsg::PerformDcaPurchase { user, hops }** Performs a DCA purchase on behalf of a
-/// specified user given a hop route.
+/// * **ExecuteMsg::Deposit {
+///          deposit_type,
+///          dca_order_id,
+///          asset } Deposit an asset (source/tip/gas) into the dca contract.
 ///
 /// * **ExecuteMsg::UpdateConfig {
 ///         max_hops,
 ///         per_hop_fee,
-///         whitelisted_tokens,
-///         max_spread
+///         whitelisted_tokens_source,
+///         whitelisted_tokens_tip,
+///         max_spread,
+///         router_addr
 ///     }** Updates the contract configuration with the specified input parameters.
 ///
-/// * **ExecuteMsg::UpdateUserConfig {
+/// * **ExecuteMsg::CreateDcaOrder {
+///         start_at,
+///         interval,
+///         dca_amount,
 ///         max_hops,
 ///         max_spread,
-///     }** Updates a users configuration with the new input parameters.
+///         source,
+///         tip,
+///         gas,
+///         target_info
+///     }** Creates a new DCA order where `source` will purchase the `target_info` asset.
 ///
-/// * **ExecuteMsg::Withdraw { tip }** Withdraws a bot tip from the contract.
+/// * **ExecuteMsg::Withdraw {
+///         withdraw_type,
+///         dca_order_id,
+///         asset} withdraw an asset (source/tip/gas/target) from the dca contract.
+///
+/// * **ExecuteMsg::PerformDcaPurchase { dca_order_id, hops }** Performs a DCA purchase on behalf of a
+/// specified user given a hop route.
+///
+/// * **ExecuteMsg::CancelDcaOrder { initial_asset }** Cancels an existing DCA order.
+///
+/// * **ExecuteMsg::ModifyDcaOrder {
+///         id,
+///         new_source_asset,
+///         new_target_asset_info,
+///         new_tip_asset,
+///         new_interval,
+///         new_dca_amount,
+///         new_start_at,
+///         new_max_hops,
+///         new_max_spread,
+///     }** Modifies an existing DCA order, allowing the user to change certain parameters.
+///
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -242,18 +254,19 @@ pub fn execute(
 /// * **QueryMsg::Config {}** Returns information about the configuration of the contract in a
 /// [`Config`] object.
 ///
-/// * **QueryMsg::UserConfig {}** Returns information about a specified users configuration set for
-/// DCA purchases in a [`UserConfig`] object.
+/// * **QueryMsg::UserDcaOrders {}** Returns the list of dca order ids for a specified user. The list  
+/// is given by the [`Vec<String>`] object.
 ///
-/// * **QueryMsg::UserDcaOrders {}** Returns information about a specified users current DCA orders
-/// set in a [`Vec<DcaInfo>`] object.
+/// * **QueryMsg::DcaOrders {id}** Returns information about the dca order with a specific id. The information
+/// is encapsulated in a [`DcaInfo`] object.
+///
+/// * **QueryMsg::ReplySubMsgResponse {}** Returns information about the reply of the swap operation. The information
+/// is encapsulated in a [`SubMsgResponse`] object.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&get_config(deps)?),
-        //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
         QueryMsg::UserDcaOrders { user } => to_binary(&get_user_dca_orders(deps, user)?),
-        //  QueryMsg::UserConfig { user } => to_binary(&get_user_config(deps, user)?),
         QueryMsg::DcaOrders { id } => to_binary(&get_dca_orders(deps, id)?),
         QueryMsg::ReplySubMsgResponse {} => to_binary(&get_sub_msg_data(deps)?),
     }

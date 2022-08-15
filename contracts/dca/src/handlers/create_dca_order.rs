@@ -2,7 +2,7 @@ use crate::state::{Config, CONFIG};
 use crate::{
     error::ContractError,
     state::{DCA_ORDERS, LAST_DCA_ORDER_ID, USER_DCA_ORDERS},
-    utils::{aggregate_assets, get_token_allowance, validate_all_deposit_assets},
+    utils::{aggregate_assets, validate_all_deposit_assets},
 };
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 /// ## Description
-/// Creates a new DCA order for a user where the `target_asset` will be purchased with `dca_amount`
-/// of token `initial_asset` every `interval`.
+/// Creates a new DCA order for a user where the `target_info` asset will be purchased with `dca_amount`
+/// of token `source` asset at every `interval`.
 ///
 /// Returns a [`ContractError`] as a failure, otherwise returns a [`Response`] with the specified
 /// attributes if the operation was successful.
@@ -25,18 +25,30 @@ use std::str::FromStr;
 /// * `env` - The [`Env`] of the blockchain.
 ///
 /// * `info` - A [`MessageInfo`] from the sender who wants to create their order, containing the
-/// [`AssetInfo::NativeToken`] if the `initial_asset` is a native token.
+/// [`AssetInfo::NativeToken`] if the `source` asset is a native token.
 ///
-/// * `initial_asset` - The [`Asset`] that is being spent to purchase DCA orders. If the asset is a
-/// Token (non-native), the contact will need to have the allowance for the DCA contract set to the
-/// `initial_asset.amount`.
-///
-/// * `target_asset` - The [`AssetInfo`] that is being purchased with `initial_asset`.
+/// * `start_at` - The [`u64`] the time in seconds defining the start of the dca order.
 ///
 /// * `interval` - The time in seconds between DCA purchases.
 ///
+///
 /// * `dca_amount` - A [`Uint128`] representing the amount of `initial_asset` to spend each DCA
 /// purchase.
+///
+/// * `max_hops` - An optional [`u32`] representing the maximum number of swap operation allowed to purchase the target asset.
+///
+/// * `max_spread` - An optional [`Decimal`] representing the maximum spread ratio allowed beween the swap operations.
+///
+
+/// * `source` - A whitelisted [`Asset`] that is being spent to purchase DCA orders. If the asset is a
+/// Token (non-native), the contract will need to have the allowance for the DCA contract set to the
+/// `source.amount`.
+///
+/// * `tip` - A whitelisted [`Asset`] which is used to reward a bot for performing purchases on behalf of the user.
+///
+/// * `gas` - the [`Asset`] (uluna) needed for the dca contract to performs transactions.
+///
+/// * `target_info` - The [`AssetInfo`] that is being purchased with `source` asset.
 pub fn create_dca_order(
     deps: DepsMut,
     env: Env,
@@ -72,6 +84,7 @@ pub fn create_dca_order(
     // deposit_asset whitelisted and  amount > 0
     // tip_asset whitelisted and amount > 0
     // gas amount > 0
+    // ...
     sanity_checks(
         &next_dca_order_id,
         &deps,
@@ -246,19 +259,16 @@ fn sanity_checks(
 
 #[cfg(test)]
 mod tests {
+    use crate::contract::execute;
     use crate::fixture::fixture::mock_storage_valid_data;
     use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
     use astroport::asset::{Asset, AssetInfo};
     use astroport_dca::dca::ExecuteMsg;
-
     use cosmwasm_std::{
         attr, coin,
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Response, Uint128,
     };
-
-    //  use super::super::deposit::test_util::mock_storage_valid_data;
-    use crate::contract::execute;
 
     #[test]
     // deposit assets are whitelisted

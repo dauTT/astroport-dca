@@ -1,18 +1,16 @@
+use crate::state::DCA_ORDERS;
+use astroport_dca::dca::DcaInfo;
 use cosmwasm_std::{Deps, StdResult};
 
-use crate::state::DCA_ORDERS;
-
-use astroport_dca::dca::DcaInfo;
-
 /// ## Description
-/// Returns the configuration set for a user to override the default contract configuration.
+/// Returns the information of a particular dca order specified by an id
 ///
-/// The result is returned in a [`UserConfig`] object.
+/// The result is returned in a [`DcaInfo`] object.
 ///
 /// ## Arguments
 /// * `deps` - A [`Deps`] that contains the dependencies.
 ///
-/// * `user` - The users lowercase address as a [`String`].
+/// * `id` - the dca order id given as a [`String`].
 pub fn get_dca_orders(deps: Deps, id: String) -> StdResult<DcaInfo> {
     return DCA_ORDERS.load(deps.storage, id);
 }

@@ -1,9 +1,8 @@
+use crate::state::{Config, CONFIG};
 use cosmwasm_std::{Deps, StdResult};
 
-use crate::state::{Config, CONFIG};
-
 /// ## Description
-/// Returns the contract configuration set by the factory address owner or contract instantiator.
+/// Returns the contract configuration of the dca contract.
 ///
 /// The result is returned in a [`Config`] object.
 ///

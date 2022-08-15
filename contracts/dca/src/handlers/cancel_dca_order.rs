@@ -7,9 +7,9 @@ use astroport_dca::dca::DcaInfo;
 use cosmwasm_std::{attr, CosmosMsg, DepsMut, MessageInfo, Response, Uint128};
 
 /// ## Description
-/// Cancels a users DCA purchase so thatto_string() it will no longer be fulfilled.
+/// Cancels a users DCA order.
 ///
-/// Returns the `initial_asset` back to the user if it was a native token.
+/// Returns the all assets (source, tip, gas, target) back to the user.
 ///
 /// Returns a [`ContractError`] as a failure, otherwise returns a [`Response`] with the specified
 /// attributes if the operation was successful.
@@ -18,7 +18,7 @@ use cosmwasm_std::{attr, CosmosMsg, DepsMut, MessageInfo, Response, Uint128};
 ///
 /// * `info` - A [`MessageInfo`] from the sender who wants to cancel their order.
 ///
-/// * `initial_asset` The [`AssetInfo`] which the user wants to cancel the DCA order for.
+/// * `id` The [`String`] representing the dca order id which the user wants to cancel.
 pub fn cancel_dca_order(
     deps: DepsMut,
     info: MessageInfo,
@@ -38,7 +38,7 @@ pub fn cancel_dca_order(
         .add_attributes(vec![attr("action", "cancel_dca_order"), attr("id", id)]))
 }
 
-// remove the order from the storage
+/// Remove the order from the storage
 fn remove_dca_order(deps: DepsMut, info: MessageInfo, id: String) -> Result<(), ContractError> {
     USER_DCA_ORDERS.update(
         deps.storage,
@@ -84,6 +84,8 @@ fn build_refund_messages(
 
 #[cfg(test)]
 mod tests {
+    use crate::contract::execute;
+    use crate::fixture::fixture::mock_storage_valid_data;
     use crate::state::{DCA_ORDERS, USER_DCA_ORDERS};
     use astroport_dca::dca::ExecuteMsg;
     use cosmwasm_std::{
@@ -91,9 +93,6 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Empty, Response,
     };
-
-    use crate::contract::execute;
-    use crate::fixture::fixture::mock_storage_valid_data;
 
     #[test]
     // deposit assets are whitelisted

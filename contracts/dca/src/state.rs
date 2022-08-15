@@ -1,11 +1,9 @@
 use astroport::asset::{Asset, AssetInfo};
-
+use astroport_dca::dca::{DcaInfo, WhitelistedTokens};
 use cosmwasm_std::{Addr, Decimal, SubMsgResponse, Uint128};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use astroport_dca::dca::{DcaInfo, WhitelistedTokens};
 
 /// Stores the main dca module parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -24,7 +22,8 @@ pub struct Config {
     pub gas_info: AssetInfo,
     // The list of tokens which are allowed in the DCA contracts.
     pub whitelisted_tokens: WhitelistedTokens,
-    /// The address of the Astroport factory contract
+    /// The address of the Astroport factory contract.
+    /// Actually this
     pub factory_addr: Addr,
     /// The address of the Astroport router contract
     pub router_addr: Addr,
@@ -47,5 +46,5 @@ pub const LAST_DCA_ORDER_ID: Item<String> = Item::new("last_dca_order_id");
 // Third element of the tuple : tip cost
 pub const TMP_GAS_BALANCE_AND_TIP_COST: Item<Option<(String, Asset, Asset)>> =
     Item::new("tmp_contract_target_balance");
-
+// This variable is used for debugging purpose. Remove it once the contract is production ready!
 pub const SUB_MSG_DATA: Item<SubMsgResponse> = Item::new("sub_msg_data");

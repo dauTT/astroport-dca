@@ -38,6 +38,14 @@ pub fn get_token_allowance(
     Ok(allowance_response.allowance)
 }
 
+/// ## Description
+/// Retrieves the native/token balance wrapped in a [`Asset`] structure for an account.
+/// ## Arguments
+/// * `querier` - A [`&QuerierWrapper`] that allow to execute queries.
+///
+/// * `account_addr` - The [`Addr`] which is the address of an account (user/contract).
+///
+/// * `asset_info` - The [`AssetInfo`] that contains the information of the asset.
 pub fn query_asset_balance(
     querier: &QuerierWrapper,
     account_addr: Addr,
@@ -56,7 +64,7 @@ pub fn query_asset_balance(
     })
 }
 
-// Subtract asset2 to asset1
+// try to subtract asset2 from asset1
 pub fn try_sub(asset1: Asset, asset2: Asset) -> Result<Asset, ContractError> {
     if asset1.info != asset2.info {
         return Err(ContractError::InvalidInput {
@@ -86,7 +94,6 @@ pub fn try_sub(asset1: Asset, asset2: Asset) -> Result<Asset, ContractError> {
 }
 
 pub fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
-    // if asset.info.is_native_token() {
     let key = asset.info.to_string();
     let op = asset_map.get(&key);
     match op {

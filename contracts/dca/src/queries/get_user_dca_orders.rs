@@ -1,18 +1,15 @@
+use crate::state::USER_DCA_ORDERS;
 use astroport::asset::addr_validate_to_lower;
 use cosmwasm_std::{Deps, StdResult};
 
-use crate::state::USER_DCA_ORDERS;
-
 /// ## Description
-/// Returns a users DCA orders currently set.
+/// Returns a list of DCA order ids which the user owns.
 ///
-/// The result is returned in a [`Vec<DcaQueryInfo`] object of the users current DCA orders with the
-/// `amount` of each order set to the native token amount that can be spent, or the token allowance.
+/// The result is returned in a [`Vec<String>`] object of the users current DCA orders
+/// where the dca order id is tracked as a String.
 ///
 /// ## Arguments
 /// * `deps` - A [`Deps`] that contains the dependencies.
-///
-/// * `env` - The [`Env`] of the blockchain.
 ///
 /// * `user` - The users lowercase address as a [`String`].
 pub fn get_user_dca_orders(deps: Deps, user: String) -> StdResult<Vec<String>> {

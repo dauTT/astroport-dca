@@ -1,8 +1,8 @@
-// use std::clone;
-
-use std::str::FromStr;
-
 use crate::utils::query_asset_balance;
+use crate::{
+    error::ContractError,
+    state::{Config, CONFIG, DCA_ORDERS, SUB_MSG_DATA, TMP_GAS_BALANCE_AND_TIP_COST},
+};
 use astroport::asset::Asset;
 use astroport::{
     asset::AssetInfo,
@@ -15,11 +15,7 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ExecuteMsg;
 use schemars::Map;
-
-use crate::{
-    error::ContractError,
-    state::{Config, CONFIG, DCA_ORDERS, SUB_MSG_DATA, TMP_GAS_BALANCE_AND_TIP_COST},
-};
+use std::str::FromStr;
 
 /// A `reply` call code ID of sub-message.
 const PERFORM_DCA_PURCHASE_REPLY_ID: u64 = 1;
@@ -37,7 +33,7 @@ const PERFORM_DCA_PURCHASE_REPLY_ID: u64 = 1;
 /// * `info` - A [`MessageInfo`] from the bot who is performing a DCA purchase on behalf of another
 /// user, who will be rewarded with a uusd tip.
 ///
-/// * `user` - The address of the user as a [`String`] who is having a DCA purchase fulfilled.
+/// * `dca_order_id` - The dca order id as a [`String`].
 ///
 /// * `hops` - A [`Vec<SwapOperation>`] of the hop operations to complete in the swap to purchase
 /// the target asset.
