@@ -13,7 +13,7 @@ import {
   queryContractDebug,
   queryBankDebug,
   toEncodedBinary,
-  performTransactions,
+  performTransactionsDebug,
   NativeAsset,
   TokenAsset,
   getBlockTimeInSeconds,
@@ -176,13 +176,7 @@ export async function test_create_order_1() {
         ),
       ];
 
-      let header = "*************** msgs: create_dca_order *************";
-      logToFile(logPath, JSON.stringify(msgs, null, 4), header);
-
-      res = await performTransactions(terra, wallet, msgs);
-
-      header = "**************** result tx:  ************";
-      logToFile(logPath, JSON.stringify(res, null, 4), header);
+      res = await performTransactionsDebug(terra, wallet, msgs, logPath);
 
       // AFTER: query balance
       queryName = `AFTER: balance AAA token of the owner (sender): ${wallet.key.accAddress} `;
@@ -389,134 +383,7 @@ export async function test_create_order_2() {
         ),
       ];
 
-      logToFile(
-        logPath,
-        JSON.stringify(msgs, null, 4),
-        "*************** msgs: create_dca_order *************"
-      );
-
-      res = await performTransactions(terra, wallet, msgs);
-
-      logToFile(
-        logPath,
-        JSON.stringify(res, null, 4),
-        "**************** result tx:  ************"
-      );
-
-      // Check the order is stored properly
-      queryName = "dca_orders with id =2 ";
-      query = { dca_orders: { id: "2" } };
-      res = await queryContractDebug(
-        terra,
-        network.DcaAddress,
-        query,
-        queryName,
-        logPath
-      );
-
-      strictEqual(res.max_spread, "0.4", "res.max_spread");
-      strictEqual(res.max_hops, 3, "res.max_spread");
-
-      network.tests[testName] = "pass";
-    } catch (err) {
-      console.error(err);
-
-      logToFile(
-        logPath,
-        String(err) + ": " + JSON.stringify(err, null, 4),
-        "*********** something bad happened: error **************"
-      );
-      network.tests[testName] = "fail";
-    }
-
-    writeArtifact(network, terra.config.chainID);
-  }
-}
-
-export async function test_create_order_3() {
-  let testName = "test_create_order_3";
-  const { terra, wallet, network, logPath } = initTestClient(testName, "test1");
-
-  if (!network.tests) {
-    let tests: Tests = {};
-    network.tests = tests;
-  }
-
-  if (!network.tests[testName]) {
-    try {
-      let blocktime = await getBlockTimeInSeconds(terra);
-      let queryName: String;
-      let query: any;
-      let res: any;
-
-      // msg allowance source: contract = network.tokenAddresses.BBB
-      let msgIncreaseAllowanceSource = {
-        increase_allowance: {
-          spender: network.DcaAddress,
-          amount: "8000000",
-        },
-      };
-
-      // msg create order
-      let gas = new NativeAsset("uluna", "1000000");
-      let tip = new NativeAsset("uluna", "5000000");
-      let gas_and_tip = new NativeAsset("uluna", "6000000");
-      let msgCreateDcaOrder = {
-        create_dca_order: {
-          max_hops: 3,
-          max_spread: "0.4",
-          dca_amount: new TokenAsset(
-            network.tokenAddresses.AAA,
-            "200000"
-          ).getAsset(),
-          source: new TokenAsset(
-            network.tokenAddresses.AAA,
-            "8000000"
-          ).getAsset(),
-          gas: gas.getAsset(),
-          interval: 10,
-          start_at: blocktime + 10,
-          target_info: new NativeAsset("uluna").getInfo(),
-          tip: new TokenAsset(network.tokenAddresses.AAA, "200000"),
-        },
-      };
-
-      logToFile(
-        logPath,
-        JSON.stringify(msgCreateDcaOrder, null, 4),
-        "********* msgCreateDcaOrder: *********"
-      );
-
-      let msgs = [
-        // Allow the dca contract to spend money (Source)
-        new MsgExecuteContract(
-          wallet.key.accAddress,
-          network.tokenAddresses.AAA,
-          msgIncreaseAllowanceSource,
-          []
-        ),
-        // Create dca order. The Dca smart contract will execute a TransferFrom
-        new MsgExecuteContract(
-          wallet.key.accAddress,
-          network.DcaAddress,
-          msgCreateDcaOrder,
-          [gas_and_tip.toCoin()]
-        ),
-      ];
-
-      logToFile(
-        logPath,
-        JSON.stringify(msgs, null, 4),
-        "*************** msgs: create_dca_order *************"
-      );
-
-      res = await performTransactions(terra, wallet, msgs);
-
-      logToFile(
-        logPath,
-        JSON.stringify(res, null, 4),
-        "**************** result tx:  ************"
-      );
+      res = await performTransactionsDebug(terra, wallet, msgs, logPath);
 
       // Check the order is stored properly
       queryName = "dca_orders with id =2 ";

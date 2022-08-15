@@ -16,8 +16,8 @@ import { MsgExecuteContract } from "@terra-money/terra.js";
 
 import { logToFile } from "../util.js";
 
-export async function test_deposit_source_asset() {
-  let testName = "test_deposit_source_asset";
+export async function test_withdraw_source_asset() {
+  let testName = "test_withdraw_source_asset";
   let testAccount: TestAccount = "test1";
   const { terra, wallet, network, logPath } = initTestClient(
     testName,
@@ -30,6 +30,7 @@ export async function test_deposit_source_asset() {
       let queryName = "Querying for dca_order_id = 2";
       let dca_order_id = "2";
 
+      // preliminary checks
       let order = await getDcaOrderId(
         terra,
         dca_order_id,
@@ -40,7 +41,7 @@ export async function test_deposit_source_asset() {
 
       let sourceAssetBefore = new TokenAsset(
         network.tokenAddresses.AAA,
-        "7800000"
+        "8000000"
       );
 
       strictEqual(
@@ -55,15 +56,11 @@ export async function test_deposit_source_asset() {
         "Source asset amount does not match"
       );
 
-      let TestAccoutAssetsBefore = [
-        new TokenAsset(network.tokenAddresses.BBB, "1000000996991"),
-      ];
-
       await checkAddressAssetsBalances(
         terra,
         logPath,
         testAccountAddress,
-        [new TokenAsset(network.tokenAddresses.AAA, "999990000000")],
+        [new TokenAsset(network.tokenAddresses.AAA, "999989800000")],
         `BEFORE DEPOSIT: balance of the source asset of user=${testAccountAddress}`
       );
 
@@ -71,44 +68,30 @@ export async function test_deposit_source_asset() {
         terra,
         logPath,
         network.DcaAddress,
-        [new TokenAsset(network.tokenAddresses.AAA, "8800000")],
+        [new TokenAsset(network.tokenAddresses.AAA, "9000000")],
         `BEFORE DEPOSIT: balance of the source asset of DCA contract address=${network.DcaAddress}`
       );
 
-      let deposit_source_asset = new TokenAsset(
+      // withdraw source asset
+      let withdraw_source_asset = new TokenAsset(
         network.tokenAddresses.AAA,
-        "200000"
+        "1000000"
       );
 
-      let msgDeposit = {
-        deposit: {
-          asset: deposit_source_asset.getAsset(),
+      let msgWithdraw = {
+        withdraw: {
+          asset: withdraw_source_asset.getAsset(),
           dca_order_id: dca_order_id,
-          deposit_type: "source",
-        },
-      };
-
-      // msg allowance source: contract = network.tokenAddresses.AAA
-      let msgIncreaseAllowanceSource = {
-        increase_allowance: {
-          spender: network.DcaAddress,
-          amount: "200000",
+          withdraw_type: "source",
         },
       };
 
       let msgs = [
-        // Allow the dca contract to spend money (Source)
-        new MsgExecuteContract(
-          wallet.key.accAddress,
-          network.tokenAddresses.AAA,
-          msgIncreaseAllowanceSource,
-          []
-        ),
         // Modify dca order. The Dca smart contract will execute a TransferFrom (move token AAA from user to dca contract)
         new MsgExecuteContract(
           wallet.key.accAddress,
           network.DcaAddress,
-          msgDeposit,
+          msgWithdraw,
           []
         ),
       ];
@@ -120,12 +103,12 @@ export async function test_deposit_source_asset() {
         dca_order_id,
         network,
         logPath,
-        "AFTER DEPOSIT: checking source asset amount"
+        "AFTER WITHDRAW: checking source asset amount"
       );
 
       let sourceAssetAfter = new TokenAsset(
         network.tokenAddresses.AAA,
-        "8000000"
+        "7000000"
       );
 
       strictEqual(
@@ -144,16 +127,16 @@ export async function test_deposit_source_asset() {
         terra,
         logPath,
         testAccountAddress,
-        [new TokenAsset(network.tokenAddresses.AAA, "999989800000")],
-        `AFTER DEPOSIT: balance of the source asset of user=${testAccountAddress}`
+        [new TokenAsset(network.tokenAddresses.AAA, "999990800000")],
+        `AFTER WITHDRAW: balance of the source asset of user=${testAccountAddress}`
       );
 
       await checkAddressAssetsBalances(
         terra,
         logPath,
         network.DcaAddress,
-        [new TokenAsset(network.tokenAddresses.AAA, "9000000")],
-        `AFTER DEPOSIT: balance of the source asset of DCA contract address=${network.DcaAddress}`
+        [new TokenAsset(network.tokenAddresses.AAA, "8000000")],
+        `AFTER WITHDRAW: balance of the source asset of DCA contract address=${network.DcaAddress}`
       );
 
       network.tests[testName] = "pass";

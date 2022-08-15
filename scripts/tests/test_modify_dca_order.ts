@@ -1,17 +1,15 @@
 import { strictEqual } from "assert";
 import {
   writeArtifact,
-  queryContractDebug,
   TokenAsset,
   NativeAsset,
   executeContractDebug,
-  performTransactions,
+  performTransactionsDebug,
 } from "../helpers.js";
 import {
   initTestClient,
   checkDcaOrderBalance,
-  checkUserAssetBalance,
-  TestClient,
+  checkAddressAssetsBalances,
   TestAccount,
 } from "./common.js";
 
@@ -26,8 +24,10 @@ export async function test_modify_dca_order_id_1() {
     testName,
     testAccount
   );
+  const testAccountAddress = wallet.key.accAddress;
+
   try {
-    if (!network.tests.test_modify_dca_order_id_1) {
+    if (!network.tests[testName]) {
       let queryName = "Querying for dca_order_id = 1";
       let dca_order_id = "1";
 
@@ -68,10 +68,10 @@ export async function test_modify_dca_order_id_1() {
         new TokenAsset(network.tokenAddresses.AAA, "999982000000"),
         new TokenAsset(network.tokenAddresses.BBB, "1000000000000"),
       ];
-      await checkUserAssetBalance(
+      await checkAddressAssetsBalances(
         terra,
         logPath,
-        testAccount,
+        testAccountAddress,
         assetsBefore,
         "BEFORE MODIFICATION: User Assets Balances"
       );
@@ -85,13 +85,6 @@ export async function test_modify_dca_order_id_1() {
             network.tokenAddresses.DDD
           ).getInfo(),
           new_dca_amount: new NativeAsset("uluna", "10000").getAsset(),
-          /*
-          new_tip_asset,
-          new_interval,
-          new_start_at,
-          new_max_hops,
-          new_max_spread
-          */
         },
       };
 
@@ -129,15 +122,15 @@ export async function test_modify_dca_order_id_1() {
         new TokenAsset(network.tokenAddresses.AAA, "999991000000"), // 999982000000 -9000000
         new TokenAsset(network.tokenAddresses.BBB, "1000000996991"), // 1000000000000 + 996991
       ];
-      await checkUserAssetBalance(
+      await checkAddressAssetsBalances(
         terra,
         logPath,
-        testAccount,
+        testAccountAddress,
         assetsAfter,
         "AFTER MODIFICATION: User Assets Balances"
       );
 
-      network.tests.test_modify_dca_order_id_1 = "pass";
+      network.tests[testName] = "pass";
     }
   } catch (err) {
     console.error(err);
@@ -146,7 +139,7 @@ export async function test_modify_dca_order_id_1() {
       String(err) + ": " + JSON.stringify(err, null, 4),
       "*********** something bad happened: error **************"
     );
-    network.tests.test_modify_dca_order_id_1 = "fail";
+    network.tests[testName] = "fail";
   }
   writeArtifact(network, terra.config.chainID);
 }
@@ -158,6 +151,8 @@ export async function test_modify_dca_order_id_1_again() {
     testName,
     testAccount
   );
+  const testAccountAddress = wallet.key.accAddress;
+
   try {
     if (!network.tests[testName]) {
       let queryName = "Querying for dca_order_id = 1";
@@ -172,7 +167,6 @@ export async function test_modify_dca_order_id_1_again() {
         "9900000"
       );
       let interval = 10;
-      //let start_at = 1000;
       let max_hops = undefined;
       let max_spread = undefined;
 
@@ -200,10 +194,10 @@ export async function test_modify_dca_order_id_1_again() {
         new TokenAsset(network.tokenAddresses.EEE, "1000000000000"),
         new TokenAsset(network.tokenAddresses.CCC, "999990000000"),
       ];
-      await checkUserAssetBalance(
+      await checkAddressAssetsBalances(
         terra,
         logPath,
-        testAccount,
+        testAccountAddress,
         assetsBefore,
         "BEFORE MODIFICATION: User Assets Balances"
       );
@@ -268,19 +262,7 @@ export async function test_modify_dca_order_id_1_again() {
         ),
       ];
 
-      logToFile(
-        logPath,
-        JSON.stringify(msgs, null, 4),
-        "*************** msgs:  *************"
-      );
-
-      let res = await performTransactions(terra, wallet, msgs);
-
-      logToFile(
-        logPath,
-        JSON.stringify(res, null, 4),
-        "**************** result tx:  ************"
-      );
+      await performTransactionsDebug(terra, wallet, msgs, logPath);
 
       let sourceAssetAfter = new_asset_source;
       let spentAssetAfter = new TokenAsset(network.tokenAddresses.AAA, "0");
@@ -313,10 +295,10 @@ export async function test_modify_dca_order_id_1_again() {
         new TokenAsset(network.tokenAddresses.EEE, "1000000000000"), // Nothing has changed
         new TokenAsset(network.tokenAddresses.CCC, "999999900000"), // 999990000000 + 9900000
       ];
-      await checkUserAssetBalance(
+      await checkAddressAssetsBalances(
         terra,
         logPath,
-        testAccount,
+        testAccountAddress,
         assetsAfter,
         "AFTER MODIFICATION: User Assets Balances"
       );

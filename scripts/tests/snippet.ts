@@ -5,7 +5,12 @@ import "dotenv/config";
 import { queryContractDebug, queryBankDebug, TokenAsset } from "../helpers.js";
 import * as fs from "fs";
 
-import { initTestClient, getDcaConfig, getTokenBalance } from "./common.js";
+import {
+  initTestClient,
+  getDcaConfig,
+  getTokenBalance,
+  getDcaOrderId,
+} from "./common.js";
 
 import {
   Coin,
@@ -42,22 +47,19 @@ async function snippet() {
     logPath
   );
 
-  await queryBankDebug(
-    terra,
-    LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr,
-    " luna balance for user",
-    logPath
-  );
+  let userAddr = network.DcaAddress; // LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr;
+  await queryBankDebug(terra, userAddr, " luna balance for user", logPath);
 
   await getTokenBalance(
     terra,
-    network.tokenAddresses.CCC,
-    LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr,
+    network.tokenAddresses.AAA,
+    userAddr,
     logPath
   );
 
   await getDcaConfig(terra, network, logPath);
-  await getDcaOrderId(terra, "1", network, logPath);
+  await getDcaOrderId(terra, "2", network, logPath);
+
   await getReplySubMsg(terra, network, logPath);
 
   await queryPool(
@@ -67,6 +69,7 @@ async function snippet() {
     network,
     logPath
   );
+
   */
 }
 
@@ -102,23 +105,6 @@ async function getReplySubMsg(
 ): Promise<any> {
   let queryName = "sub_msg ";
   let query = { reply_sub_msg_response: {} };
-  return await queryContractDebug(
-    terra,
-    network.DcaAddress,
-    query,
-    queryName,
-    logPath
-  );
-}
-
-async function getDcaOrderId(
-  terra: LCDClient,
-  id: string,
-  network: any,
-  logPath: fs.PathOrFileDescriptor
-): Promise<any> {
-  let queryName = `dca_orders with id = ${id} `;
-  let query = { dca_orders: { id: id } };
   return await queryContractDebug(
     terra,
     network.DcaAddress,

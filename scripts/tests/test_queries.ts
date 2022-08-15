@@ -45,7 +45,6 @@ export async function test_query_get_config() {
   try {
     if (!network.tests.test_query_get_config) {
       let res = await getDcaConfig(terra, network, logPath);
-      console.log(res);
 
       strictEqual(res.owner, LOCAL_TERRA_TEST_ACCOUNTS.test1.addr, "res.owner");
       strictEqual(res.max_hops, 3, "res.max_hops");

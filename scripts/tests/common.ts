@@ -84,6 +84,28 @@ export function initTestClient(
   return { terra, wallet, network, logPath };
 }
 
+export async function getDcaOrderId(
+  terra: LCDClient,
+  id: string,
+  network: any,
+  logPath: fs.PathOrFileDescriptor,
+  contextQuery?: string
+): Promise<any> {
+  let queryName = `dca_orders with id = ${id} `;
+  if (contextQuery !== undefined) {
+    queryName = `${contextQuery}, ${queryName}`;
+  }
+
+  let query = { dca_orders: { id: id } };
+  return await queryContractDebug(
+    terra,
+    network.DcaAddress,
+    query,
+    queryName,
+    logPath
+  );
+}
+
 export async function getTokenBalance(
   terra: LCDClient,
   contract_addr: string,
@@ -197,17 +219,14 @@ export async function checkDcaOrderBalance(
   }
 }
 
-export async function checkUserAssetBalance(
+export async function checkAddressAssetsBalances(
   terra: LCDClient,
   logPath: string,
-  testAccount: string,
+  address: string,
   assets: Asset[],
   queryName: string
 ) {
   logToFile(logPath, "", queryName);
-  let userAddress = LOCAL_TERRA_TEST_ACCOUNTS[testAccount].addr;
-  //assets.forEach(async (asset) => {
-
   for (var asset of assets) {
     let expected_amount = asset.getAsset().amount;
     if (asset.getInfo().hasOwnProperty("token")) {
@@ -215,7 +234,7 @@ export async function checkUserAssetBalance(
       let res = await getTokenBalance(
         terra,
         asset.getInfo().token.contract_addr,
-        userAddress,
+        address,
         logPath
       );
       strictEqual(
@@ -226,8 +245,8 @@ export async function checkUserAssetBalance(
     } else {
       let res = await queryBankDebug(
         terra,
-        userAddress,
-        " natives balance",
+        address,
+        "natives balance",
         logPath
       );
 
@@ -240,4 +259,37 @@ export async function checkUserAssetBalance(
       );
     }
   }
+}
+
+export async function checkUserOrders(
+  terra: LCDClient,
+  userAddr: string,
+  network: any,
+  expectedOrderIds: string[],
+  queryName: String,
+  logPath: fs.PathOrFileDescriptor
+) {
+  let query = { user_dca_orders: { user: userAddr } };
+
+  let res = await queryContractDebug(
+    terra,
+    network.DcaAddress,
+    query,
+    queryName,
+    logPath
+  );
+
+  for (let i in expectedOrderIds) {
+    strictEqual(
+      res[i],
+      expectedOrderIds[i],
+      `no order_id=${expectedOrderIds[i]} in res=${res.toString()}`
+    );
+  }
+
+  strictEqual(
+    res.length,
+    expectedOrderIds.length,
+    `The number of actual order ids and expected ids do not match: actual=${res.length}, expected=${expectedOrderIds.length}`
+  );
 }

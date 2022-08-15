@@ -454,3 +454,23 @@ export async function executeContractDebug(
 
   return res;
 }
+export async function performTransactionsDebug(
+  terra: LCDClient,
+  wallet: Wallet,
+  msgs: Msg[],
+  logPath: fs.PathOrFileDescriptor
+) {
+  logToFile(
+    logPath,
+    JSON.stringify(msgs, null, 4),
+    "*************** try to execute msgs:  *************"
+  );
+
+  let res = await performTransactions(terra, wallet, msgs);
+
+  logToFile(
+    logPath,
+    JSON.stringify(res, null, 4),
+    "**************** result of performTransactions :  ************"
+  );
+}

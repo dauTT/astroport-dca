@@ -1,37 +1,13 @@
 import { strictEqual } from "assert";
 import {
-  newClient,
   writeArtifact,
-  readArtifact,
-  deployContract,
-  executeContract,
-  queryContract,
   executeContractDebug,
   queryContractDebug,
-  toEncodedBinary,
-  performTransactions,
   NativeAsset,
   TokenAsset,
-  Asset,
-  newTestClient,
 } from "../helpers.js";
 
-import {
-  Coin,
-  Coins,
-  isTxError,
-  LCDClient,
-  LocalTerra,
-  MnemonicKey,
-  Msg,
-  MsgExecuteContract,
-  MsgInstantiateContract,
-  MsgMigrateContract,
-  MsgStoreCode,
-  MsgUpdateContractAdmin,
-  Tx,
-  Wallet,
-} from "@terra-money/terra.js";
+import { LCDClient } from "@terra-money/terra.js";
 
 import { initTestClient, checkDcaOrderBalance } from "./common.js";
 import { logToFile } from "../util.js";

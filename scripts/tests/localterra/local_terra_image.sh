@@ -58,6 +58,10 @@ if [[ "$1" = "run" ]]; then
         $IMAGE ;
 
     echo $CONTAINER_NAME
+
+    echo "copy  localterra.json to ../../astroport_artifacts/"
+    cp localterra.json  ../../astroport_artifacts/
+
 fi
 
 if [[ "$1" = "run_print" ]]; then
@@ -72,6 +76,8 @@ if [[ "$1" = "run_print" ]]; then
         $IMAGE ;
 
     echo $CONTAINER_NAME
+
+    echo ""
 fi
 
 if [[ "$1" = "enter" ]]; then
