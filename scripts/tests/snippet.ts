@@ -19,7 +19,7 @@ import {
 } from "../helpers.js";
 import * as fs from "fs";
 
-import { initTestClient } from "./common.js";
+import { initTestClient, getDcaConfig } from "./common.js";
 
 import {
   Coin,
@@ -48,37 +48,53 @@ async function main() {
     "test1"
   );
 
-  await queryBankDebug(terra, network.DcaAddress, " luna balance", logPath);
-  await get_token_balance(
+  await queryBankDebug(
+    terra,
+    network.DcaAddress,
+    " luna balance for user oder",
+    logPath
+  );
+
+  /*
+  await queryBankDebug(
+    terra,
+    LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr,
+    " luna balance for user",
+    logPath
+  );
+*/
+  /*
+  await getTokenBalance(
     terra,
     network.tokenAddresses.AAA,
     LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr,
     logPath
   );
-  /*
-  await get_dca_config(terra, logPath, network);
-  await get_dca_order_id(terra, "1", logPath, network);
-  await get_reply_sub_msg(terra, logPath, network);
+ */
 
-  await get_dca_config(terra, logPath, network);
-  await query_pool(
+  await getDcaConfig(terra, network, logPath);
+  // await getDcaOrderId(terra, "1", network, logPath);
+  // await getReplySubMsg(terra, network, logPath);
+
+  /*
+  await queryPool(
     terra,
     new TokenAsset(network.tokenAddresses.AAA).getInfo(),
     new TokenAsset(network.tokenAddresses.BBB).getInfo(),
-    logPath,
-    network
+    network,
+    logPath
   );
-*/
+  */
 }
 
 main().catch(console.log);
 
-async function query_pool(
+async function queryPool(
   terra: LCDClient,
   asset1_info: any,
   asset2_info: any,
-  logPath: fs.PathOrFileDescriptor,
-  network: any
+  network: any,
+  logPath: fs.PathOrFileDescriptor
 ): Promise<any> {
   let queryName = "Query pool";
   let query = {
@@ -96,7 +112,7 @@ async function query_pool(
   );
 }
 
-async function get_token_balance(
+export async function getTokenBalance(
   terra: LCDClient,
   contract_addr: string,
   user_addr: string,
@@ -113,10 +129,10 @@ async function get_token_balance(
   );
 }
 
-async function get_reply_sub_msg(
+async function getReplySubMsg(
   terra: LCDClient,
-  logPath: fs.PathOrFileDescriptor,
-  network: any
+  network: any,
+  logPath: fs.PathOrFileDescriptor
 ): Promise<any> {
   let queryName = "sub_msg ";
   let query = { reply_sub_msg_response: {} };
@@ -129,30 +145,11 @@ async function get_reply_sub_msg(
   );
 }
 
-async function get_dca_config(
-  terra: LCDClient,
-  logPath: fs.PathOrFileDescriptor,
-  network: any
-): Promise<any> {
-  let queryName = "config dca";
-  let query = {
-    config: {},
-  };
-
-  return await queryContractDebug(
-    terra,
-    network.DcaAddress,
-    query,
-    queryName,
-    logPath
-  );
-}
-
-async function get_dca_order_id(
+async function getDcaOrderId(
   terra: LCDClient,
   id: string,
-  logPath: fs.PathOrFileDescriptor,
-  network: any
+  network: any,
+  logPath: fs.PathOrFileDescriptor
 ): Promise<any> {
   let queryName = `dca_orders with id = ${id} `;
   let query = { dca_orders: { id: id } };
