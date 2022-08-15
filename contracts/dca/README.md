@@ -4,27 +4,267 @@ The DCA contract contains logic to facilitate users performing DCA orders (dolla
 
 ## InstantiateMsg
 
-Initializes the contract with the configuration settings, the [Astroport factory contract](https://github.com/astroport-fi/astroport-core/tree/main/contracts/factory) address and the [Astroport router contract](https://github.com/astroport-fi/astroport-core/tree/main/contracts/router) address.
+Initializes the contract with the configuration settings, the [Astroport factory contract](https://github.com/astroport-fi/astroport-core/tree/main/contracts/factory) address and the [Astroport router contract](https://github.com/astroport-fi/astroport-core/tree/main/contracts/router) address. A sample instantiateMsg that we have deploy in our locaterra image `dautt/astroport:v1.2.0` looks as follow:
 
 ```json
 {
-  "factory_addr": "terra...",
-  "router_addr": "terra...",
-  "max_hops": 4,
-  "max_spread": "0.05",
+  "owner": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+  "max_hops": 3,
+  "max_spread": "0.5",
   "per_hop_fee": "100000",
-  "whitelisted_tokens": [
-    { "native_token": { "denom": "uusd" } },
-    { "token": { "contract_ddr": "terra..." } }
-  ]
+  "gas_info": {
+    "native_token": {
+      "denom": "uluna"
+    }
+  },
+  "whitelisted_tokens": {
+    "source": [
+      {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra10v0hrjvwwlqwvk2yhwagm9m9h385spxa4s54f4aekhap0lxyekys4jh3s4"
+        }
+      },
+      {
+        "native_token": {
+          "denom": "uluna"
+        }
+      }
+    ],
+    "tip": [
+      {
+        "token": {
+          "contract_addr": "terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      {
+        "native_token": {
+          "denom": "uluna"
+        }
+      }
+    ]
+  },
+  "factory_addr": "terra1qnmggqv3u03axw69cn578hukqhl4f2ze2k403ykcdlhj98978u7stv7fyj",
+  "router_addr": "terra15kwtyl2jtf8frwh3zu2jntqvem8u36y8aw6yy9z3ypgkfjx6ct2q73xas8"
 }
 ```
 
 ## ExecuteMsg
 
+In this section we provide for each ExecuteMsg a sample which we have deployed in our image `dautt/astroport:v1.2.0`
+
+### `deposit`
+
+After a user has created a dca order, he can deposit more assets (source/tip/gas) into the oder.
+Example: In the dca oder with id=2 the user wants to deposit more source asset.
+
+```json
+{
+  "deposit": {
+    "asset": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "200000"
+    },
+    "dca_order_id": "2",
+    "deposit_type": "source"
+  }
+}
+```
+
+### `create_dca_order`
+
+The user can created a new dca order by specifiying the following parameters as schown in this example.
+
+```json
+{
+  "create_dca_order": {
+    "dca_amount": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "1000000"
+    },
+    "source": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "10000000"
+    },
+    "gas": {
+      "info": {
+        "native_token": {
+          "denom": "uluna"
+        }
+      },
+      "amount": "1000000"
+    },
+    "interval": 10,
+    "start_at": 1660589561,
+    "target_info": {
+      "token": {
+        "contract_addr": "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p"
+      }
+    },
+    "tip": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul"
+        }
+      },
+      "amount": "10000000"
+    }
+  }
+}
+```
+
+### `withdraw`
+
+The user can withthdraw one of his assets (source/tip/gas/target) from his dca oder.
+Example: the user want to withdraw some of his source asset.
+
+```json
+{
+  "withdraw": {
+    "asset": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "1000000"
+    },
+    "dca_order_id": "2",
+    "withdraw_type": "source"
+  }
+}
+```
+
+### `cancel_dca_oder`
+
+The user can cancel his order.
+Example: the user wants to cancel dca oder id=2. All his assets which are tracked in the oder will be refunded.
+
+```json
+{
+  "cancel_dca_order": {
+    "id": "2"
+  }
+}
+```
+
+### `perform_dca_purchase`
+
+Anyone can trigger a oder purchase on behalf of owner od the dca oder.
+Example:
+
+```json
+{
+  "perform_dca_purchase": {
+    "dca_order_id": "3",
+    "hops": [
+      {
+        "astro_swap": {
+          "offer_asset_info": {
+            "token": {
+              "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+            }
+          },
+          "ask_asset_info": {
+            "token": {
+              "contract_addr": "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p"
+            }
+          }
+        }
+      },
+      {
+        "astro_swap": {
+          "offer_asset_info": {
+            "token": {
+              "contract_addr": "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p"
+            }
+          },
+          "ask_asset_info": {
+            "native_token": {
+              "denom": "uluna"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### `modify_dca_oder`
+
+The user can modify his oder as follow. Example:
+
+```json
+{
+  "modify_dca_order": {
+    "id": "1",
+    "new_source_asset": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "1000000"
+    },
+    "new_target_asset_info": {
+      "token": {
+        "contract_addr": "terra1wastjc07zuuy46mzzl3egz4uzy6fs59752grxqvz8zlsqccpv2wqnfu3yr"
+      }
+    },
+    "new_dca_amount": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "500000"
+    },
+    "new_tip_asset": {
+      "info": {
+        "native_token": {
+          "denom": "uluna"
+        }
+      },
+      "amount": "64357531"
+    },
+    "new_interval": 1000,
+    "new_start_at": 1000,
+    "new_max_hops": 5,
+    "new_max_spread": "0.7"
+  }
+}
+```
+
 ### `update_config`
 
-Updates the contract configuration with the specified optional parameters.
+Only the owner of the dca contract can updates the contract configuration with the specified optional parameters.
 
 Any parameters that are not specified will be left unchanged.
 
@@ -36,141 +276,11 @@ Any parameters that are not specified will be left unchanged.
     // leave max_hops, per_hop_fee, whitelisted_tokens unchanged
     "max_hops": null,
     "per_hop_fee": null,
-    "whitelisted_tokens": null
+    "whitelisted_tokens_source": null,
+    "whitelisted_tokens_tip": null,
+    "max_spread": null,
+    "router_addr": null
   }
-}
-```
-
-### `update_user_config`
-
-Updates a users configuration with the specified parameters.
-
-Any parameters that are not specified will be reset in the configuration so that the user uses the contract set configuration values.
-
-```json
-{
-  "update_user_config": {
-    // make the user use the contract set max_hops
-    "max_hops": null,
-    "max_spread": "0.15"
-  }
-}
-```
-
-### `add_bot_tip`
-
-Add uusd top-up for bots to perform DCA requests
-
-uusd fund must be added to message.
-
-```json
-{
-  "add_bot_tip": {}
-}
-```
-
-### `withdraw`
-
-Withdraws a users previously deposited bot tip from the contract.
-
-Tip specified will be returned back to the user.
-
-```json
-{
-  "withdraw": {
-    // withdraw 0.1 UST tip deposited
-    "tip": "100000"
-  }
-}
-```
-
-### `create_dca_order`
-
-Creates a new DCA order where a deposited asset will purchase a target asset at a specified interval.
-
-If the deposited asset is a CW20 token, the user needs to have increased the allowance prior to calling this execution.
-
-If the deposited asset is a native token, the user needs to attach the token to the execution message.
-
-Example: Purchase 5 UST worth of Luna each day, with 15 UST.
-
-```json
-{
-  "create_dca_order": {
-    "dca_amount": "5000000",
-    "initial_asset": {
-      "info": { "native_token": { "denom": "uusd" } },
-      "amount": "15000000"
-    },
-    "interval": "86400",
-    "target_asset": {
-      "native_token": { "denom": "uluna" }
-    }
-  }
-}
-```
-
-### `modify_dca_order`
-
-Modifies an existing DCA order, allowing the user to change certain parameters.
-
-Example: Change existing order which used uusd to purchase luna to now purchase ukrw with uusd each week. Also increase the size of the order to now be 30 UST (we must send an additional 15 UST in the message).
-
-```json
-{
-  "modify_dca_order": {
-    "new_dca_amount": "1000000",
-    "old_initial_asset": { "native_token": { "denom": "uusd" } },
-    "new_initial_asset": {
-      "info": { "native_token": { "denom": "uusd" } },
-      "amount": "15000000"
-    },
-    "new_interval": 604800,
-    "new_target_asset": { "native_token": { "denom": "ukrw" } },
-    "should_reset_purchase_time": true
-  }
-}
-```
-
-### `cancel_dca_order`
-
-Cancels a DCA order, returning any native asset back to the user.
-
-```json
-{
-  "cancel_dca_order": {
-    "initial_asset": { "native_token": { "denom": "uusd" } }
-  }
-}
-```
-
-### `perform_dca_purchase`
-
-Performs a DCA purchase for a specified user given a hop route.
-
-Returns a uusd tip from the user for purchasing the assets on their behalf.
-
-For more information about the `hops`, see the [Astroport router](https://docs.astroport.fi/astroport/smart-contracts/router) documentation.
-
-```json
-{
-	"perform_dca_purchase": {
-		"user": "terra...",
-		"hops": [
-			"native_swap": {
-				"ask_denom": "uluna",
-				"offer_denom": "uusd"
-			},
-			"astro_swap": {
-				"ask_asset_info": {
-					"token": {
-						"contract_addr": "terra..."
-					}
-				},
-				"offer_denom": "uluna"
-			}
-		]
-	}
 }
 ```
 
@@ -192,48 +302,85 @@ Example response:
 
 ```json
 {
-  "config": {
-    "factory_addr": "terra...",
-    "router_addr": "terra...",
-    "max_hops": 32,
-    "max_spread": "0.05",
-    "per_hop_fee": "100000",
-    "whitelisted_tokens": [
-      { "native_token": { "denom": "uusd" } },
-      { "token": { "contract_addr": "terra..." } }
+  "owner": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+  "max_hops": 3,
+  "max_spread": "0.5",
+  "per_hop_fee": "100000",
+  "gas_info": {
+    "native_token": {
+      "denom": "uluna"
+    }
+  },
+  "whitelisted_tokens": {
+    "source": [
+      {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra10v0hrjvwwlqwvk2yhwagm9m9h385spxa4s54f4aekhap0lxyekys4jh3s4"
+        }
+      },
+      {
+        "native_token": {
+          "denom": "uluna"
+        }
+      }
+    ],
+    "tip": [
+      {
+        "token": {
+          "contract_addr": "terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      {
+        "native_token": {
+          "denom": "uluna"
+        }
+      }
     ]
-  }
+  },
+  "factory_addr": "terra1qnmggqv3u03axw69cn578hukqhl4f2ze2k403ykcdlhj98978u7stv7fyj",
+  "router_addr": "terra15kwtyl2jtf8frwh3zu2jntqvem8u36y8aw6yy9z3ypgkfjx6ct2q73xas8"
 }
 ```
 
-### `user_config`
+### `user_dca_orders`
 
-Returns the users current configuration (custom override `max_hops`, `max_spread`, uusd tip balance deposited).
+Returns the list of dca oder ids which belong to a specified user.
 
 ```json
 {
-  "user_config": {}
+  "user_dca_orders": { "user": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v" }
 }
 ```
 
 Example response:
 
 ```json
-{
-  "max_hops": 2,
-  "max_spread": "0.5",
-  "tip_balance": "50000000"
-}
+["1", "2"]
 ```
 
-### `user_dca_orders`
+### `dca_orders`
 
-Returns information about the users current active DCA orders.
+Returns information about the dca order id.
 
 ```json
 {
-  "user_dca_orders": {
-    "user": "terra..."
+  "dca_orders": {
+    "id": "2"
   }
 }
 ```
@@ -241,34 +388,64 @@ Returns information about the users current active DCA orders.
 Example response for two DCA orders:
 
 ```json
-[
-  {
-    "initial_asset": {
-      "amount": "15000000",
-      "info": {
-        "native_token": { "denom": "uusd" }
+{
+  "id": "2",
+  "created_by": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+  "created_at": 1660596065,
+  "start_at": 1660596064,
+  "interval": 10,
+  "dca_amount": {
+    "info": {
+      "token": {
+        "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
       }
     },
-    "target_asset": {
-      "token": { "contract_addr": "terra..." }
-    },
-    "interval": 60,
-    "last_purchase": 1230940800,
-    "dca_amount": "3000000"
+    "amount": "200000"
   },
-  {
-    "initial_asset": {
-      "amount": "300000000",
+  "max_hops": 3,
+  "max_spread": "0.4",
+  "balance": {
+    "source": {
       "info": {
-        "token": { "contract_addr": "terra..." }
-      }
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "7800000"
     },
-    "target_asset": {
-      "token": { "contract_addr": "terra..." }
+    "spent": {
+      "info": {
+        "token": {
+          "contract_addr": "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
+        }
+      },
+      "amount": "200000"
     },
-    "interval": 3600,
-    "last_purchase": 1230940800,
-    "dca_amount": "10000000"
+    "target": {
+      "info": {
+        "native_token": {
+          "denom": "uluna"
+        }
+      },
+      "amount": "199297"
+    },
+    "tip": {
+      "info": {
+        "native_token": {
+          "denom": "uluna"
+        }
+      },
+      "amount": "4800000"
+    },
+    "gas": {
+      "info": {
+        "native_token": {
+          "denom": "uluna"
+        }
+      },
+      "amount": "1000000"
+    },
+    "last_purchase": 1660596085
   }
-]
+}
 ```
