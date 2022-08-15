@@ -2,7 +2,7 @@ use crate::state::{Config, CONFIG};
 use crate::{
     error::ContractError,
     state::{DCA_ORDERS, LAST_DCA_ORDER_ID, USER_DCA_ORDERS},
-    utils::get_token_allowance,
+    utils::{aggregate_assets, get_token_allowance, validate_all_deposit_assets},
 };
 use astroport::asset::{Asset, AssetInfo};
 use astroport_dca::dca::{Balance, DcaInfo, WhitelistedTokens};
@@ -166,8 +166,6 @@ fn sanity_checks(
     tip: &Asset,
     gas: &Asset,
 ) -> Result<(), ContractError> {
-    let asset_map = &mut HashMap::new();
-
     // Check next_dca_order_id is not already used
     let res = DCA_ORDERS.load(deps.storage, next_dca_order_id.clone());
     if let Ok(_) = res {
@@ -237,53 +235,13 @@ fn sanity_checks(
         });
     }
 
+    let asset_map = &mut HashMap::new();
     aggregate_assets(asset_map, source.clone());
     aggregate_assets(asset_map, tip.clone());
     aggregate_assets(asset_map, gas.clone());
+    validate_all_deposit_assets(deps, &env, &info, asset_map)?;
 
-    // let assets = vec![source, tip, gas];
-    // aggregate_assets(asset_map, asset.clone());
-    for (_, asset) in asset_map {
-        // check that user has sent the valid tokens to the contract
-        // if native token, they should have included it in the message
-        // otherwise, if cw20 token, they should have provided the correct allowance
-        match &asset.info {
-            AssetInfo::NativeToken { .. } => asset.assert_sent_native_token_balance(&info)?,
-            AssetInfo::Token { contract_addr } => {
-                let allowance =
-                    get_token_allowance(&deps.as_ref(), &env, &info.sender, contract_addr)?;
-                if allowance < asset.amount {
-                    return Err(ContractError::AllowanceCheckFail {
-                        token_addr: contract_addr.to_string(),
-                        aggr_amount: asset.amount.to_string(),
-                        allowance: allowance.to_string(),
-                    });
-                }
-            }
-        }
-    }
-
-    return Ok(());
-}
-
-fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
-    // if asset.info.is_native_token() {
-    let key = asset.info.to_string();
-    let op = asset_map.get(&key);
-    match op {
-        None => {
-            asset_map.insert(key.clone(), asset.clone());
-        }
-        Some(a) => {
-            let aggregated_amount = asset.amount.checked_add(a.amount).unwrap();
-            let aggregated_asset = Asset {
-                info: asset.info.clone(),
-                amount: aggregated_amount,
-            };
-
-            asset_map.insert(key.clone(), aggregated_asset);
-        }
-    }
+    Ok(())
 }
 
 #[cfg(test)]

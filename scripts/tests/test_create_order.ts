@@ -61,7 +61,6 @@ export async function test_create_order_1() {
       let query: any;
 
       //BEFORE: query balance
-
       queryName = `BEFORE: balance AAA token of the owner (sender): ${wallet.key.accAddress} `;
       query = {
         balance: {

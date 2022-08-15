@@ -16,9 +16,9 @@ import {
   TokenAsset,
   Asset,
 } from "../helpers.js";
-
+import * as fs from "fs";
 import { LCDClient, Wallet } from "@terra-money/terra.js";
-import { getTokenBalance } from "./snippet.js";
+// import { getTokenBalance } from "./snippet.js";
 
 import {
   logToFile,
@@ -84,6 +84,23 @@ export function initTestClient(
   return { terra, wallet, network, logPath };
 }
 
+export async function getTokenBalance(
+  terra: LCDClient,
+  contract_addr: string,
+  user_addr: string,
+  logPath: fs.PathOrFileDescriptor
+): Promise<any> {
+  let queryName = `Get balance of token = ${contract_addr} for use=${user_addr} `;
+  let query = { balance: { address: user_addr } };
+  return await queryContractDebug(
+    terra,
+    contract_addr,
+    query,
+    queryName,
+    logPath
+  );
+}
+
 export async function getDcaConfig(
   terra: LCDClient,
   network: any,
@@ -114,7 +131,11 @@ export async function checkDcaOrderBalance(
   gas: Asset,
   tip: Asset,
   dca_order_id: string,
-  queryName: string
+  queryName: string,
+  interval?: number,
+  start_at?: number,
+  max_hops?: number,
+  max_spread?: string
 ) {
   let keys = ["source", "spent", "target", "gas", "tip"];
   let values = [
@@ -161,6 +182,19 @@ export async function checkDcaOrderBalance(
       `Check ${key} amount`
     );
   });
+
+  if (interval !== undefined) {
+    strictEqual(res.interval, interval, `Check interval`);
+  }
+  if (start_at !== undefined) {
+    strictEqual(res.start_at, start_at, `Check start_at`);
+  }
+  if (max_hops !== undefined) {
+    strictEqual(res.max_hops, max_hops, `Check max_hops`);
+  }
+  if (max_spread !== undefined) {
+    strictEqual(res.max_spread, max_spread, `Check max_spread`);
+  }
 }
 
 export async function checkUserAssetBalance(
@@ -172,7 +206,9 @@ export async function checkUserAssetBalance(
 ) {
   logToFile(logPath, "", queryName);
   let userAddress = LOCAL_TERRA_TEST_ACCOUNTS[testAccount].addr;
-  assets.forEach(async (asset) => {
+  //assets.forEach(async (asset) => {
+
+  for (var asset of assets) {
     let expected_amount = asset.getAsset().amount;
     if (asset.getInfo().hasOwnProperty("token")) {
       let token_addr = asset.getInfo().token.contract_addr;
@@ -195,9 +231,6 @@ export async function checkUserAssetBalance(
         logPath
       );
 
-      console.log("XXXXXXXXXXXXXXXX: ", res[0]._coins["uluna"].amount);
-      console.log("XXXXXXXXXXXXXXXX: ", res[0]._coins["uluna"].amount);
-      // todo: treat the general case where there a more coins than luna
       let denom = asset.getInfo().native_token.denom;
       let actual_amount = res[0]._coins[denom].amount;
       strictEqual(
@@ -206,5 +239,5 @@ export async function checkUserAssetBalance(
         `Balance of ${denom}: actual=${actual_amount}, expected=${expected_amount}`
       );
     }
-  });
+  }
 }

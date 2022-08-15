@@ -2,24 +2,10 @@
 import { strictEqual } from "assert";
 
 import "dotenv/config";
-import {
-  newClient,
-  writeArtifact,
-  readArtifact,
-  deployContract,
-  executeContract,
-  queryContract,
-  executeContractDebug,
-  queryContractDebug,
-  queryBankDebug,
-  toEncodedBinary,
-  performTransactions,
-  NativeAsset,
-  TokenAsset,
-} from "../helpers.js";
+import { queryContractDebug, queryBankDebug, TokenAsset } from "../helpers.js";
 import * as fs from "fs";
 
-import { initTestClient, getDcaConfig } from "./common.js";
+import { initTestClient, getDcaConfig, getTokenBalance } from "./common.js";
 
 import {
   Coin,
@@ -42,12 +28,13 @@ import { LOCAL_TERRA_TEST_ACCOUNTS } from "../util.js";
 
 // This is a kind of playground for designing concrete tests.
 // Create small runnable snippet here till you can aggregated them into a test
-async function main() {
+async function snippet() {
   const { terra, wallet, network, logPath } = initTestClient(
     "snippet",
     "test1"
   );
 
+  /*
   await queryBankDebug(
     terra,
     network.DcaAddress,
@@ -55,28 +42,24 @@ async function main() {
     logPath
   );
 
-  /*
   await queryBankDebug(
     terra,
     LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr,
     " luna balance for user",
     logPath
   );
-*/
-  /*
+
   await getTokenBalance(
     terra,
-    network.tokenAddresses.AAA,
+    network.tokenAddresses.CCC,
     LOCAL_TERRA_TEST_ACCOUNTS["test1"].addr,
     logPath
   );
- */
 
   await getDcaConfig(terra, network, logPath);
-  // await getDcaOrderId(terra, "1", network, logPath);
-  // await getReplySubMsg(terra, network, logPath);
+  await getDcaOrderId(terra, "1", network, logPath);
+  await getReplySubMsg(terra, network, logPath);
 
-  /*
   await queryPool(
     terra,
     new TokenAsset(network.tokenAddresses.AAA).getInfo(),
@@ -87,7 +70,7 @@ async function main() {
   */
 }
 
-main().catch(console.log);
+snippet().catch(console.log);
 
 async function queryPool(
   terra: LCDClient,
@@ -106,23 +89,6 @@ async function queryPool(
   return await queryContractDebug(
     terra,
     network.factoryAddress,
-    query,
-    queryName,
-    logPath
-  );
-}
-
-export async function getTokenBalance(
-  terra: LCDClient,
-  contract_addr: string,
-  user_addr: string,
-  logPath: fs.PathOrFileDescriptor
-): Promise<any> {
-  let queryName = `Get balance of token = ${contract_addr} for use=${user_addr} `;
-  let query = { balance: { address: user_addr } };
-  return await queryContractDebug(
-    terra,
-    contract_addr,
     query,
     queryName,
     logPath

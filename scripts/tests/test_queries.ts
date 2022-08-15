@@ -5,7 +5,7 @@ import {
   TokenAsset,
   NativeAsset,
 } from "../helpers.js";
-import { getDcaConfig, initTestClient } from "./common.js";
+import { initTestClient, getDcaConfig } from "./common.js";
 import { logToFile, LOCAL_TERRA_TEST_ACCOUNTS } from "../util.js";
 
 export async function test_query_invalid_dca_order_id_2() {
@@ -44,7 +44,7 @@ export async function test_query_get_config() {
   const { terra, wallet, network, logPath } = initTestClient(testName, "test2");
   try {
     if (!network.tests.test_query_get_config) {
-      let res = await getDcaConfig(terra, network.DcaAddress, logPath);
+      let res = await getDcaConfig(terra, network, logPath);
       console.log(res);
 
       strictEqual(res.owner, LOCAL_TERRA_TEST_ACCOUNTS.test1.addr, "res.owner");

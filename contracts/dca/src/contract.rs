@@ -212,6 +212,7 @@ pub fn execute(
             new_max_spread,
         } => modify_dca_order(
             deps,
+            env,
             info,
             id,
             ModifyDcaOrderParameters {

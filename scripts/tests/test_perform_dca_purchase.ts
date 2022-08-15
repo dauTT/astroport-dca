@@ -15,10 +15,6 @@ import {
   Asset,
   newTestClient,
 } from "../helpers.js";
-import { join } from "path";
-
-import { getDcaConfig } from "./common.js";
-import * as fs from "fs";
 
 import {
   Coin,
@@ -37,7 +33,7 @@ import {
   Wallet,
 } from "@terra-money/terra.js";
 
-import { initTestClient } from "./common.js";
+import { initTestClient, checkDcaOrderBalance } from "./common.js";
 import { logToFile } from "../util.js";
 
 // Perform_dca_purchase for the order created in test_create_order_1_hop
@@ -64,7 +60,7 @@ export async function test_perform_dca_purchase_for_order_1() {
       );
 
       queryName = `BEFORE PURCHASE: Checking Balances of dca_order_id=${dca_order_id}`;
-      await checkBalance(
+      await checkDcaOrderBalance(
         terra,
         logPath,
         network.DcaAddress,
@@ -151,7 +147,7 @@ export async function test_perform_dca_purchase_for_order_1() {
       let tipAssetAfter = new TokenAsset(network.tokenAddresses.CCC, "9900000");
       queryName = `AFTER PURCHASE: Checking Balances of dca_order_id=${dca_order_id}`;
 
-      await checkBalance(
+      await checkDcaOrderBalance(
         terra,
         logPath,
         network.DcaAddress,
@@ -199,7 +195,7 @@ export async function test_perform_dca_purchase_for_order_2() {
       let tipAssetBefore = new NativeAsset("uluna", "5000000");
 
       queryName = `BEFORE PURCHASE: Checking Balances of dca_order_id=${dca_order_id}`;
-      await checkBalance(
+      await checkDcaOrderBalance(
         terra,
         logPath,
         network.DcaAddress,
@@ -305,7 +301,7 @@ export async function test_perform_dca_purchase_for_order_2() {
       let tipAssetAfter = new NativeAsset("uluna", "4800000");
       queryName = `AFTER PURCHASE: Checking Balances of dca_order_id=${dca_order_id}`;
 
-      await checkBalance(
+      await checkDcaOrderBalance(
         terra,
         logPath,
         network.DcaAddress,
@@ -331,68 +327,6 @@ export async function test_perform_dca_purchase_for_order_2() {
 
     writeArtifact(network, terra.config.chainID);
   }
-}
-
-async function checkBalance(
-  terra: LCDClient,
-  logPath: string,
-  DcaAddress: string,
-  source: Asset,
-  spent: Asset,
-  target: Asset,
-  gas: Asset,
-  tip: Asset,
-  dca_order_id: string,
-  queryName: string
-) {
-  let keys = ["source", "spent", "target", "gas", "tip"];
-  let values = [
-    source.getAsset(),
-    spent.getAsset(),
-    target.getAsset(),
-    gas.getAsset(),
-    tip.getAsset(),
-  ];
-
-  let expectedBalance: { [key: string]: any } = {};
-  keys.forEach((key, i) => (expectedBalance[key] = values[i]));
-
-  let query = {
-    dca_orders: { id: dca_order_id },
-  };
-
-  let res = await queryContractDebug(
-    terra,
-    DcaAddress,
-    query,
-    queryName,
-    logPath
-  );
-
-  keys.forEach((key) => {
-    if (expectedBalance[key].info.hasOwnProperty("token")) {
-      strictEqual(
-        res.balance[key].info.token.contract_addr,
-        expectedBalance[key].info.token.contract_addr,
-        `Check ${key} address`
-      );
-    } else {
-      strictEqual(
-        res.balance[key].info.native_token.denom,
-        expectedBalance[key].info.native_token.denom,
-        `Check ${key} denom`
-      );
-    }
-
-    strictEqual(
-      res.balance[key].amount,
-      expectedBalance[key].amount,
-      `Check ${key} amount`
-    );
-  });
-
-  // let tip_cost = Number(dcaConfig.per_hop_fee) * msg.perform_dca_purchase.hops.length
-  // strictEqual(res.balance.tip.amount, "9900000", "Check gas amount");
 }
 
 async function checkTokenPool(

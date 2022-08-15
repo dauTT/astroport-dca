@@ -1,12 +1,15 @@
-use astroport::asset::{Asset, AssetInfo};
-use astroport_dca::dca::{DcaInfo, WhitelistedTokens};
-use cosmwasm_std::{attr, CosmosMsg, Decimal, DepsMut, MessageInfo, Response, Uint128};
-
 use crate::{
     error::ContractError,
     state::{CONFIG, DCA_ORDERS},
-    utils::build_send_message,
+    utils::{aggregate_assets, build_send_message, validate_all_deposit_assets},
 };
+use astroport::asset::{Asset, AssetInfo};
+use astroport_dca::dca::{DcaInfo, WhitelistedTokens};
+use cosmwasm_std::{
+    attr, to_binary, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, Uint128, WasmMsg,
+};
+use cw20::Cw20ExecuteMsg;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 /// Stores a modified dca order new parameters
@@ -52,6 +55,7 @@ pub struct ModifyDcaOrderParameters {
 /// parameters.
 pub fn modify_dca_order(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     dca_order_id: String,
     change_request: ModifyDcaOrderParameters,
@@ -67,10 +71,17 @@ pub fn modify_dca_order(
         new_max_spread,
     } = change_request.clone();
     let order = &mut DCA_ORDERS.load(deps.as_ref().storage, dca_order_id.clone())?;
+    let asset_map = &mut HashMap::new();
+
+    // permission check
+    if info.sender != order.created_by() {
+        return Err(ContractError::Unauthorized {});
+    }
+
     let config = CONFIG.load(deps.storage)?;
     let whitelisted_tokens = config.whitelisted_tokens;
 
-    let mut messages: Vec<CosmosMsg> = Vec::new();
+    let messages: &mut Vec<CosmosMsg> = &mut Vec::new();
 
     if let Some(new_source) = new_source_asset {
         // Check new_source_asset info is not the same as the current source asset info
@@ -82,14 +93,16 @@ pub fn modify_dca_order(
         // Replace the current source_asset with new source_asset
         // Reset balance of spent_asset
         // Build a send msg to return the current source_asset to the user
-        let msg = replace_source_asset(
+        replace_source_asset(
+            &env,
             info.clone(),
+            messages,
             whitelisted_tokens.clone(),
             order,
             new_source.clone(),
             new_dca_amount.clone(),
         )?;
-        messages.push(msg);
+        aggregate_assets(asset_map, new_source);
     }
 
     if let Some(new_target_asset_info) = new_target_asset_info {
@@ -97,8 +110,7 @@ pub fn modify_dca_order(
         // Replace the current target with new_target_asset
         // Reset balance of spent, target_asset
         // Build a send msg to return the current target_asset to the user
-        let msg = replace_target_asset(info.clone(), order, new_target_asset_info)?;
-        messages.push(msg);
+        replace_target_asset(info.clone(), messages, order, new_target_asset_info)?;
     }
 
     if let Some(new_tip) = new_tip_asset {
@@ -106,8 +118,15 @@ pub fn modify_dca_order(
         // Check new_tip_asset is whitelisted
         // Replace the current tip_asset with new_tip_asset
         // Build a send msg to return the current source_asset to the user
-        let msg = replace_tip_asset(info.clone(), whitelisted_tokens, order, new_tip.clone())?;
-        messages.push(msg);
+        replace_tip_asset(
+            &env,
+            info.clone(),
+            messages,
+            whitelisted_tokens,
+            order,
+            new_tip.clone(),
+        )?;
+        aggregate_assets(asset_map, new_tip);
     }
 
     if let Some(new_interval) = new_interval {
@@ -132,22 +151,28 @@ pub fn modify_dca_order(
         order.max_spread = new_max_spread;
     }
 
+    validate_all_deposit_assets(&deps, &env, &info, asset_map)?;
+
     DCA_ORDERS.save(deps.storage, dca_order_id.clone(), order)?;
 
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
-        attr("action", "modify_dca_order"),
-        attr("dca_order_id", dca_order_id.to_string()),
-        attr("change_request", format!("{:?}", change_request)),
-    ]))
+    Ok(Response::new()
+        .add_messages(messages.clone())
+        .add_attributes(vec![
+            attr("action", "modify_dca_order"),
+            attr("dca_order_id", dca_order_id.to_string()),
+            attr("change_request", format!("{:?}", change_request)),
+        ]))
 }
 
 fn replace_source_asset(
+    env: &Env,
     info: MessageInfo,
+    messages: &mut Vec<CosmosMsg>,
     whitelisted_tokens: WhitelistedTokens,
     order: &mut DcaInfo,
     new_source_asset: Asset,
     new_dca_amount: Option<Asset>,
-) -> Result<CosmosMsg, ContractError> {
+) -> Result<(), ContractError> {
     // Check new_source_asset info is not the same as the current source asset
     if order.balance.source.info == new_source_asset.info {
         return Err(ContractError::InvalidInput {
@@ -196,23 +221,31 @@ fn replace_source_asset(
         };
     }
 
+    build_exchange_messages(
+        env,
+        info,
+        messages,
+        new_source_asset.clone(),
+        order.balance.source.clone(),
+    )?;
+
     // Replace the current source_asset with new source_asset
     order.balance.source = new_source_asset.clone();
     // Reset balance of spent_asset
     order.balance.spent = Asset {
-        info: new_source_asset.info.clone(),
+        info: new_source_asset.info,
         amount: Uint128::zero(),
     };
 
-    let msg = build_send_message(info, new_source_asset)?;
-    Ok(msg)
+    Ok(())
 }
 
 fn replace_target_asset(
     info: MessageInfo,
+    messages: &mut Vec<CosmosMsg>,
     order: &mut DcaInfo,
     new_target_asset_info: AssetInfo,
-) -> Result<CosmosMsg, ContractError> {
+) -> Result<(), ContractError> {
     let new_target_asset = Asset {
         info: new_target_asset_info.clone(),
         amount: Uint128::zero(),
@@ -226,23 +259,31 @@ fn replace_target_asset(
             ),
         });
     };
+
+    if !order.balance.target.amount.is_zero() {
+        let msg = build_send_message(info, order.balance.target.clone())?;
+        messages.push(msg);
+    }
+
     // Replace the current target with new_target_asset
-    order.balance.target = new_target_asset.clone();
+    order.balance.target = new_target_asset;
     // Reset balance of spent, target_asset
     order.balance.spent.amount = Uint128::zero();
     // Reset last_purchase time
     order.balance.last_purchase = 0u64;
     // Build a send msg to return the current target_asset to the user
-    let msg = build_send_message(info, new_target_asset)?;
-    Ok(msg)
+
+    Ok(())
 }
 
 fn replace_tip_asset(
+    env: &Env,
     info: MessageInfo,
+    messages: &mut Vec<CosmosMsg>,
     whitelisted_tokens: WhitelistedTokens,
     order: &mut DcaInfo,
     new_tip_asset: Asset,
-) -> Result<CosmosMsg, ContractError> {
+) -> Result<(), ContractError> {
     // Check new_tip_asset info is not the same as the current tip asset info
     if order.balance.tip.info == new_tip_asset.info {
         return Err(ContractError::InvalidInput {
@@ -265,14 +306,26 @@ fn replace_tip_asset(
             msg: "Exptected tip amount > 0 , got 0".to_string(),
         });
     };
-    // Replace the tip_asset with new_tip_asset
-    order.balance.tip = new_tip_asset.clone();
 
-    let msg = build_send_message(info, new_tip_asset)?;
-    Ok(msg)
+    build_exchange_messages(
+        env,
+        info,
+        messages,
+        new_tip_asset.clone(),
+        order.balance.tip.clone(),
+    )?;
+
+    // Replace the tip_asset with new_tip_asset
+    order.balance.tip = new_tip_asset;
+
+    Ok(())
 }
 
-fn replace_dca_amount(order: &mut DcaInfo, new_dca_amount: Asset) -> Result<(), ContractError> {
+fn replace_dca_amount(
+    order: &mut DcaInfo,
+    new_dca_amount: Asset,
+    // new_source_asset: Option<Asset>,
+) -> Result<(), ContractError> {
     // Check new_dca_amount info same as the source asset info
     if order.balance.source.info.clone() != new_dca_amount.info {
         return Err(ContractError::InvalidInput {
@@ -286,6 +339,39 @@ fn replace_dca_amount(order: &mut DcaInfo, new_dca_amount: Asset) -> Result<(), 
 
     // Replace the dca_amount with new_dca_amount
     order.dca_amount = new_dca_amount;
+    Ok(())
+}
+
+fn build_exchange_messages(
+    env: &Env,
+    info: MessageInfo,
+    messages: &mut Vec<CosmosMsg>,
+    new_asset: Asset,
+    current_asset: Asset,
+) -> Result<(), ContractError> {
+    if !current_asset.amount.is_zero() {
+        // Return the current_source_asset to the user
+        let msg = build_send_message(info.clone(), current_asset)?;
+        messages.push(msg);
+    }
+
+    if !new_asset.amount.is_zero() {
+        // If the new_asset is native, the user has already send it to the dca contract.
+        // If the new_asset is a token, the dca contract will execute a TransferFrom .
+        // The sender needs to ensure to execute an allowance tx for dca contract in advance.
+        if let AssetInfo::Token { contract_addr, .. } = &new_asset.info {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: contract_addr.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: info.sender.to_string(),
+                    recipient: env.contract.address.to_string(),
+                    amount: new_asset.amount,
+                })?,
+                funds: vec![],
+            }));
+        }
+    }
+
     Ok(())
 }
 
@@ -326,7 +412,7 @@ mod tests {
         deps.storage = mock_storage_valid_data();
 
         let funds = [coin(200, "usdt"), coin(100, "uluna")];
-        let info = mock_info("owner_addr", &funds);
+        let info = mock_info("creator", &funds);
 
         // build msg
         let dca_info_id = "1".to_string();
@@ -385,7 +471,7 @@ mod tests {
         deps.storage = mock_storage_valid_data();
 
         let funds = [coin(200, "usdt"), coin(100, "uluna")];
-        let info = mock_info("owner_addr", &funds);
+        let info = mock_info("creator", &funds);
 
         // build msg
         let dca_info_id = "1".to_string();
@@ -446,7 +532,7 @@ mod tests {
         deps.storage = mock_storage_valid_data();
 
         let funds = [coin(200, "usdt"), coin(100, "uluna")];
-        let info = mock_info("owner_addr", &funds);
+        let info = mock_info("creator", &funds);
 
         // build msg
         let dca_info_id = "1".to_string();
@@ -496,7 +582,7 @@ mod tests {
         deps.storage = mock_storage_valid_data();
 
         let funds = [coin(200, "usdt"), coin(100, "uluna")];
-        let info = mock_info("owner_addr", &funds);
+        let info = mock_info("creator", &funds);
 
         // build msg
         let dca_info_id = "1".to_string();
@@ -533,7 +619,7 @@ mod tests {
         deps.storage = mock_storage_valid_data();
 
         let funds = [coin(200, "usdt"), coin(100, "uluna")];
-        let info = mock_info("owner_addr", &funds);
+        let info = mock_info("creator", &funds);
 
         // build msg
         let dca_info_id = "1".to_string();

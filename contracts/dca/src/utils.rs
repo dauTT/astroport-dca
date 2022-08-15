@@ -3,10 +3,13 @@ use astroport::{
     asset::{Asset, AssetInfo},
     querier::{query_balance, query_token_balance},
 };
-use cosmwasm_std::{to_binary, BankMsg, Coin, CosmosMsg, MessageInfo, QuerierWrapper, WasmMsg};
+use cosmwasm_std::{
+    to_binary, BankMsg, Coin, CosmosMsg, DepsMut, MessageInfo, QuerierWrapper, WasmMsg,
+};
 use cosmwasm_std::{Addr, Deps, Env, StdResult, Uint128};
 use cw20::Cw20ExecuteMsg;
 use cw20::{AllowanceResponse, Cw20QueryMsg};
+use std::collections::HashMap;
 
 /// ## Description
 /// Retrieves the allowed token allowance for the contract for a Cw20 token as a [`Uint128`].
@@ -82,23 +85,54 @@ pub fn try_sub(asset1: Asset, asset2: Asset) -> Result<Asset, ContractError> {
     Ok(diff_asset)
 }
 
-/*
+pub fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
+    // if asset.info.is_native_token() {
+    let key = asset.info.to_string();
+    let op = asset_map.get(&key);
+    match op {
+        None => {
+            asset_map.insert(key.clone(), asset.clone());
+        }
+        Some(a) => {
+            let aggregated_amount = asset.amount.checked_add(a.amount).unwrap();
+            let aggregated_asset = Asset {
+                info: asset.info.clone(),
+                amount: aggregated_amount,
+            };
 
-// check deposit asset is in the Whitelist
-if !whitelisted_tokens.is_source_asset(&deposit.info) {
-    return Err(ContractError::InvalidInput {
-        msg: format!("Deposited asset, {:?},  not whitelisted", deposit.info),
-    });
+            asset_map.insert(key.clone(), aggregated_asset);
+        }
+    }
 }
 
-// check tip asset is whitelisted
-if !whitelisted_tokens.is_tip_asset(&tip.info) {
-    return Err(ContractError::InvalidInput {
-        msg: format!(" tip asset, {:?},  not whitelisted", tip.info),
-    });
-}
+pub fn validate_all_deposit_assets(
+    deps: &DepsMut,
+    env: &Env,
+    info: &MessageInfo,
+    asset_map: &mut HashMap<String, Asset>,
+) -> Result<(), ContractError> {
+    for (_, asset) in asset_map {
+        // check that user has sent the valid tokens to the contract
+        // if native token, they should have included it in the message
+        // otherwise, if cw20 token, they should have provided the correct allowance
+        match &asset.info {
+            AssetInfo::NativeToken { .. } => asset.assert_sent_native_token_balance(info)?,
+            AssetInfo::Token { contract_addr } => {
+                let allowance =
+                    get_token_allowance(&deps.as_ref(), &env, &info.sender, contract_addr)?;
+                if allowance < asset.amount {
+                    return Err(ContractError::AllowanceCheckFail {
+                        token_addr: contract_addr.to_string(),
+                        aggr_amount: asset.amount.to_string(),
+                        allowance: allowance.to_string(),
+                    });
+                }
+            }
+        }
+    }
 
-*/
+    Ok(())
+}
 
 pub fn build_send_message(info: MessageInfo, asset: Asset) -> Result<CosmosMsg, ContractError> {
     let message: CosmosMsg = match asset.info.clone() {
