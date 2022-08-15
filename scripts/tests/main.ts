@@ -19,8 +19,8 @@ import { test_deposit_source_asset } from "./test_deposit.js";
 import { test_withdraw_source_asset } from "./test_withdraw.js";
 import { test_cancel_dca_order_2 } from "./test_cancel_dca_order.js";
 
-// Tests summary will be read/written from/to network json file which is located
-// here astroport_artifacts/localterra.json
+// Tests summary will be read/written from/to network.json file which is located
+// here: astroport_artifacts/localterra.json
 // After running a test we write the result in the localterra.json.
 // A test can be run only once.
 // If one wants to run them again one needs to restore blockchain state to his the initial setup:
@@ -35,6 +35,8 @@ async function main() {
   );
 
   // The following tests need to be executed in order as some of them have dependencies with the prior tests
+  // If one test fail, most likely the successive will all fail.
+
   await test_create_order_1();
   await test_perform_dca_purchase_for_order_1();
   await test_query_invalid_dca_order_id_2();

@@ -6,9 +6,7 @@ import {
   NativeAsset,
   TokenAsset,
 } from "../helpers.js";
-
 import { LCDClient } from "@terra-money/terra.js";
-
 import { initTestClient, checkDcaOrderBalance } from "./common.js";
 import { logToFile } from "../util.js";
 

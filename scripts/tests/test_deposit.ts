@@ -2,7 +2,6 @@ import { strictEqual } from "assert";
 import {
   writeArtifact,
   TokenAsset,
-  NativeAsset,
   performTransactionsDebug,
 } from "../helpers.js";
 import {
@@ -54,10 +53,6 @@ export async function test_deposit_source_asset() {
         sourceAssetBefore.getAsset().amount,
         "Source asset amount does not match"
       );
-
-      let TestAccoutAssetsBefore = [
-        new TokenAsset(network.tokenAddresses.BBB, "1000000996991"),
-      ];
 
       await checkAddressAssetsBalances(
         terra,

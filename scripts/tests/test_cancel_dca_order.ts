@@ -1,4 +1,3 @@
-import { strictEqual } from "assert";
 import {
   writeArtifact,
   TokenAsset,
@@ -9,7 +8,6 @@ import {
   initTestClient,
   TestAccount,
   checkAddressAssetsBalances,
-  getDcaOrderId,
   checkDcaOrderBalance,
   checkUserOrders,
 } from "./common.js";
@@ -63,7 +61,7 @@ export async function test_cancel_dca_order_2() {
         testAccountAddress,
         [
           new TokenAsset(network.tokenAddresses.AAA, "999990800000"),
-          new NativeAsset("uluna", "999999904733468"),
+          new NativeAsset("uluna", "999999904733431"),
         ],
         `BEFOR CANCEL ODER: Check balances of Token AAA and luna of user=${testAccountAddress}`
       );
@@ -112,7 +110,7 @@ export async function test_cancel_dca_order_2() {
         testAccountAddress,
         [
           new TokenAsset(network.tokenAddresses.AAA, "999997800000"),
-          new NativeAsset("uluna", "999999910670187"), // 999999904733468 + (tip) 4800000 + (gas) 1000000  + (target) 199297 => does not match exactly due to gas fee
+          new NativeAsset("uluna", "999999910670150"), // 999999904733431 + (tip) 4800000 + (gas) 1000000  + (target) 199297 => does not match exactly due to gas fee
         ],
         `AFTER CANCEL ODER: Check balances of Token AAA and luna of user=${testAccountAddress}`
       );

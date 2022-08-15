@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 
 # images:
-# - terra-local_astroport
-# - astroport:v1.0.0 -- core astroport
-# - dautt/astroport:v1.0.3  --> core astroport, test tokens, test pools, dca ontract
 # - dautt/astroport:v1.2.0  --> core astroport, test tokens, test pools. provide liquidity, dca contract
 # - dautt/astroport:v1.1.0  --> core astroport, test tokens, test pools. provide liquidity
 # - dautt/astroport:v1.0.2  --> core astroport, test tokens, test pools
 # - dautt/astroport:v1.0.1  --> core astroport, test tokens
-# - dautt/astroport:v1.0.0
+# - dautt/astroport:v1.0.0  --> core astroport
+
 # create image -->  docker commit terra-local_terrad_1 dautt/astroport:v1.0.0
 # push to hub.docker --> docker push  dautt/astroport:v1.0.0
 
@@ -28,7 +26,7 @@ fi
 
 
 # set the image to run
-VERSION=v1.1.0
+VERSION=v1.2.0
 IMAGE=dautt/astroport:$VERSION
 CONTAINER_NAME=astroport_$VERSION
 
@@ -63,6 +61,7 @@ if [[ "$1" = "run" ]]; then
     cp localterra.json  ../../astroport_artifacts/
 
 fi
+
 
 if [[ "$1" = "run_print" ]]; then
     docker run  \

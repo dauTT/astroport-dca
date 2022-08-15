@@ -58,8 +58,7 @@ export async function test_query_get_config() {
         source: [
           new TokenAsset(network.tokenAddresses.AAA).getInfo(),
           new TokenAsset(network.tokenAddresses.BBB).getInfo(),
-          new TokenAsset(network.tokenAddresses.BBB).getInfo(),
-          // new TokenAsset(network.tokenAddresses.DDD).getInfo(),
+          new TokenAsset(network.tokenAddresses.DDD).getInfo(),
           new NativeAsset("uluna").getInfo(),
         ],
         tip: [
@@ -82,7 +81,7 @@ export async function test_query_get_config() {
       strictEqual(res.factory_addr, network.factoryAddress, "res.factory_addr");
       strictEqual(res.router_addr, network.routerAddress, "res.routerAddress");
 
-      network.tests.test_query_get_config = "pass";
+      network.tests[testName] = "pass";
     }
   } catch (err) {
     console.error(err);
@@ -91,7 +90,7 @@ export async function test_query_get_config() {
       String(err) + ": " + JSON.stringify(err, null, 4),
       "*********** something bad happened: error **************"
     );
-    network.tests.test_query_get_config = "fail";
+    network.tests[testName] = "fail";
   }
   writeArtifact(network, terra.config.chainID);
 }

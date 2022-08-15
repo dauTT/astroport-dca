@@ -2,7 +2,6 @@ import { strictEqual } from "assert";
 import {
   writeArtifact,
   TokenAsset,
-  NativeAsset,
   performTransactionsDebug,
 } from "../helpers.js";
 import {
@@ -11,9 +10,7 @@ import {
   checkAddressAssetsBalances,
   getDcaOrderId,
 } from "./common.js";
-
 import { MsgExecuteContract } from "@terra-money/terra.js";
-
 import { logToFile } from "../util.js";
 
 export async function test_withdraw_source_asset() {

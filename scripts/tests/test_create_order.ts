@@ -1,43 +1,15 @@
-// https://github.com/nodejs/node/blob/v17.0.0/lib/assert.js
 import { strictEqual } from "assert";
-
-import "dotenv/config";
 import {
-  newClient,
-  newTestClient,
   writeArtifact,
-  readArtifact,
-  deployContract,
-  executeContract,
-  queryContract,
   queryContractDebug,
   queryBankDebug,
-  toEncodedBinary,
   performTransactionsDebug,
   NativeAsset,
   TokenAsset,
   getBlockTimeInSeconds,
 } from "../helpers.js";
-
 import { logToFile } from "../util.js";
-
-import {
-  Coin,
-  Coins,
-  isTxError,
-  LCDClient,
-  LocalTerra,
-  MnemonicKey,
-  Msg,
-  MsgExecuteContract,
-  MsgInstantiateContract,
-  MsgMigrateContract,
-  MsgStoreCode,
-  MsgUpdateContractAdmin,
-  Tx,
-  Wallet,
-} from "@terra-money/terra.js";
-
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { initTestClient } from "./common.js";
 
 type Tests = {
@@ -60,7 +32,7 @@ export async function test_create_order_1() {
       let queryName: String;
       let query: any;
 
-      //BEFORE: query balance
+      // BEFORE: query balance
       queryName = `BEFORE: balance AAA token of the owner (sender): ${wallet.key.accAddress} `;
       query = {
         balance: {
@@ -77,7 +49,7 @@ export async function test_create_order_1() {
 
       strictEqual(res.balance, "1000000000000", queryName.toString());
 
-      //BEFORE: query allowance
+      // BEFORE: query allowance
       queryName = `BEFORE: allowance for DCA contract ${network.DcaAddress} to user AAA token of the owner ${wallet.key.accAddress}`;
       query = {
         allowance: {

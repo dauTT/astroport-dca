@@ -1,25 +1,13 @@
 import { strictEqual } from "assert";
 import {
-  newClient,
   newTestClient,
-  writeArtifact,
   readArtifact,
-  deployContract,
-  executeContract,
-  queryContract,
-  executeContractDebug,
   queryContractDebug,
   queryBankDebug,
-  toEncodedBinary,
-  performTransactions,
-  NativeAsset,
-  TokenAsset,
   Asset,
 } from "../helpers.js";
 import * as fs from "fs";
 import { LCDClient, Wallet } from "@terra-money/terra.js";
-// import { getTokenBalance } from "./snippet.js";
-
 import {
   logToFile,
   deleteFile,

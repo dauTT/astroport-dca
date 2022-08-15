@@ -32,8 +32,6 @@
   "poolBBB-DDD": "terra1nl237syqtwr37nh3gf207fn3t8a5gfy4cp0puvt0s9fk4sm0qmzsuc4mc5",
   "lpTokenBBB-DDD": "terra1ggc4snw6dkj49n7j5znc9ae9lk92a8nlje9nkmrqryhwdzz0g50qssm3ql",
   "DcaCodeId": 31,
-  "DcaAddress": "terra1zrkla3nzvenamj4vp95yxtw6cfxymxkgwqk79z997hqaeq8yg8wsdw47e2",
-  "tests": {
-    "test_create_order_1_hop": "pass"
-  }
+  "DcaAddress": "terra1zrkla3nzvenamj4vp95yxtw6cfxymxkgwqk79z997hqaeq8yg8wsdw47e2"
+  
 }
