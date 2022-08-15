@@ -93,6 +93,7 @@ pub fn try_sub(asset1: Asset, asset2: Asset) -> Result<Asset, ContractError> {
     Ok(diff_asset)
 }
 
+/// Aggregate the assets (source/tip/gas/target) before sending from/to the dca contract
 pub fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
     let key = asset.info.to_string();
     let op = asset_map.get(&key);
@@ -112,6 +113,17 @@ pub fn aggregate_assets(asset_map: &mut HashMap<String, Asset>, asset: Asset) {
     }
 }
 
+/// ## Description
+/// Validate all contract deposit assets.
+/// ## Arguments
+/// * `deps` - A [`&DepsMut`] that contains the dependencies.
+///
+/// * `env` - The [`&Env`] of the blockchain.
+///
+/// * `_info` - The [`MessageInfo`] from the contract instantiator.
+///
+/// * `asset_map` - The [`&mut HashMap<String, Asset>`] the map of aggregate assets (source/target/tips/gas)
+///                
 pub fn validate_all_deposit_assets(
     deps: &DepsMut,
     env: &Env,

@@ -4,7 +4,7 @@ use astroport_dca::dca::{find_asset_info, DcaAssetType, DcaInfo};
 use cosmwasm_std::{attr, DepsMut, MessageInfo, Response};
 
 /// ## Description
-/// Withdraws a users bot tip from the contract.
+/// Withdraws a users source/target/tip amount from the contract.
 ///
 /// Returns a [`ContractError`] as a failure, otherwise returns a [`Response`] with the specified
 /// attributes if the operation was successful.
@@ -13,7 +13,11 @@ use cosmwasm_std::{attr, DepsMut, MessageInfo, Response};
 ///
 /// * `info` - A [`MessageInfo`] from the sender who wants to withdraw their bot tip.
 ///
-/// * `amount`` - A [`Uint128`] representing the amount of uusd to send back to the user.
+/// * `withdraw_type` - A [`DcaAssetType`] representing the the type of asset to send back to the user.
+///
+///* `dca_order_id` - A [`String`] representing the dca order id of the user.
+///
+///* `asset` - A [`Asset`] representing the asset (source/target/tip/gas) of the user.
 pub fn withdraw(
     deps: DepsMut,
     info: MessageInfo,
