@@ -35,7 +35,7 @@ local_terra_image.sh run
 
 ```
 
-make sure the local blockchain is running:
+Make sure the local blockchain is running:
 
 ```shell
 // from the root of the project execute
@@ -45,12 +45,12 @@ local_terra_image.sh enter
 // type:
 terrad status
 
-// exit from the container if you wish to do so:
+// exit from the container iafter checking that the output is fine:
 exit
 
 ```
 
-After executing `terrad status` inside the running container you should see an output similar to this one
+After executing `terrad status` inside the running container you should see an output similar to this one. If this is the case then, the blockchain is running fine.
 
 ```
 {"NodeInfo":{"protocol_version":{"p2p":"8","block":"11","app":"0"},"id":"62cd922a9d9349e790247dadd1e32947450502fb","listen_addr":"tcp://0.0.0.0:26656","network":"localterra","version":"v0.34.19-terra.2","channels":"40202122233038606100","moniker":"localterra","other":{"tx_index":"on","rpc_address":"tcp://0.0.0.0:26657"}},"SyncInfo":{"latest_block_hash":"7B4B7122E977F97A8026166CE299528CA937A0811282AB544F575549BEE34F2F","latest_app_hash":"671CD261D4DE866876CA7569E14508E25254AFD0A2059D98979702E3C2A4C59D","latest_block_height":"943","latest_block_time":"2022-08-15T21:02:12.9844774Z","earliest_block_hash":"73770BCC69947E89AC6099F7B3047E6DF47C042FBD944A387DAD5C8252CE68DD","earliest_app_hash":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855","earliest_block_height":"1","earliest_block_time":"2022-05-16T04:54:32.922225Z","catching_up":false},"ValidatorInfo":{"Address":"DA0317A8E3251C9AEAA38C34820568DCD030CF3F","PubKey":{"type":"tendermint/PubKeyEd25519","value":"/zGmkgCWRFsJLETAzlzYsbu7EHS5HWpaSyR22rlFM68="},"VotingPower":"1"}}
@@ -98,3 +98,37 @@ here `scripts/tests/localterra/network.json`
   "DcaAddress": "terra1zrkla3nzvenamj4vp95yxtw6cfxymxkgwqk79z997hqaeq8yg8wsdw47e2"
 }
 ```
+
+A sample script for deploying the dca contract on the locaterra blockchain is given here:
+`scripts/deploy_astro_dca_ts`
+
+If one wish to deploy the dca contract again, one needs to execute following two steps:
+
+```
+Remove the two line from the network.json file located here:
+scripts/astroport_artifacts/network.json. (Remember to remove also the comma before `DcaCodeId`! )
+
+,
+"DcaCodeId": 31,
+"DcaAddress": "terra..."
+
+```
+
+and then run
+
+```shell
+cd scripts
+node --loader ts-node/esm deploy_astro_dca_ts
+
+```
+
+### e2e testing
+
+Finally run all e2e testing by executing these cmd:
+
+```
+cd scripts
+node --loader ts-node/esm tests/main.ts
+```
+
+For each test case, we log the output of the execution here: `scripts/logs`
