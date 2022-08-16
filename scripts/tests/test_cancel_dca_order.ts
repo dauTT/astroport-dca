@@ -84,6 +84,12 @@ export async function test_cancel_dca_order_2() {
         },
       };
 
+      logToFile(
+        logPath,
+        JSON.stringify(msgCancelDcaOder, null, 4),
+        "********* msgCancelDcaOder: *********"
+      );
+
       let msgs = [
         new MsgExecuteContract(
           wallet.key.accAddress,

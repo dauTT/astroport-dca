@@ -76,7 +76,7 @@ export async function test_modify_dca_order_id_1() {
       );
 
       let new_asset_source = new NativeAsset("uluna", "5000000");
-      let msg = {
+      let msgModifyDcaOrder = {
         modify_dca_order: {
           id: dca_order_id,
           new_source_asset: new_asset_source.getAsset(),
@@ -87,11 +87,17 @@ export async function test_modify_dca_order_id_1() {
         },
       };
 
+      logToFile(
+        logPath,
+        JSON.stringify(msgModifyDcaOrder, null, 4),
+        "********* msgModifyDcaOrder: *********"
+      );
+
       await executeContractDebug(
         terra,
         wallet,
         network.DcaAddress,
-        msg,
+        msgModifyDcaOrder,
         [new_asset_source.toCoin()],
         `********** execute modify_dca_order: ${dca_order_id}$ ***********`,
         logPath
@@ -170,7 +176,7 @@ export async function test_modify_dca_order_id_1_again() {
       let max_spread = undefined;
 
       queryName = `BEFORE MODIFICATION: Checking Balances of dca_order_id=${dca_order_id}`;
-      /*
+
       await checkDcaOrderBalance(
         terra,
         logPath,
@@ -201,7 +207,7 @@ export async function test_modify_dca_order_id_1_again() {
         assetsBefore,
         "BEFORE MODIFICATION: User Assets Balances"
       );
-*/
+
       let new_asset_source = new TokenAsset(
         network.tokenAddresses.AAA,
         "1000000"

@@ -83,6 +83,12 @@ export async function test_deposit_source_asset() {
         },
       };
 
+      logToFile(
+        logPath,
+        JSON.stringify(msgDeposit, null, 4),
+        "********* msgDeposit: *********"
+      );
+
       // msg allowance source: contract = network.tokenAddresses.AAA
       let msgIncreaseAllowanceSource = {
         increase_allowance: {

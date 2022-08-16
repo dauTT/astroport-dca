@@ -60,7 +60,7 @@ export async function test_perform_dca_purchase_for_order_1() {
         `BEFORE PURCHASE: Check pool AAA-BBB`
       );
 
-      let msg = {
+      let msgPerformDcaPurchase = {
         perform_dca_purchase: {
           dca_order_id: dca_order_id,
           hops: [
@@ -83,11 +83,17 @@ export async function test_perform_dca_purchase_for_order_1() {
         },
       };
 
+      logToFile(
+        logPath,
+        JSON.stringify(msgPerformDcaPurchase, null, 4),
+        "********* msgPerformDcaPurchase: *********"
+      );
+
       await executeContractDebug(
         terra,
         wallet,
         network.DcaAddress,
-        msg,
+        msgPerformDcaPurchase,
         [],
         "********** perform_dca_purchase ***********",
         logPath
@@ -195,7 +201,7 @@ export async function test_perform_dca_purchase_for_order_2() {
         `BEFORE PURCHASE: Check pool AAA-BBB`
       );
 
-      let msg = {
+      let msgPerformDcaPurchase = {
         perform_dca_purchase: {
           dca_order_id: dca_order_id,
           hops: [
@@ -234,11 +240,17 @@ export async function test_perform_dca_purchase_for_order_2() {
         },
       };
 
+      logToFile(
+        logPath,
+        JSON.stringify(msgPerformDcaPurchase, null, 4),
+        "********* msgPerformDcaPurchase: *********"
+      );
+
       await executeContractDebug(
         terra,
         wallet,
         network.DcaAddress,
-        msg,
+        msgPerformDcaPurchase,
         [],
         "********** perform_dca_purchase ***********",
         logPath

@@ -83,6 +83,12 @@ export async function test_withdraw_source_asset() {
         },
       };
 
+      logToFile(
+        logPath,
+        JSON.stringify(msgWithdraw, null, 4),
+        "********* msgWithdraw: *********"
+      );
+
       let msgs = [
         // Modify dca order. The Dca smart contract will execute a TransferFrom (move token AAA from user to dca contract)
         new MsgExecuteContract(

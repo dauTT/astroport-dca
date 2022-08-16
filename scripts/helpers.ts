@@ -409,10 +409,25 @@ export async function queryBankDebug(
   queryName: String,
   logPath: fs.PathOrFileDescriptor
 ): Promise<any> {
-  logToFile(logPath, "", `************** ${queryName} **************`);
+  logToFile(
+    logPath,
+    `query: 
+     terra.bank.balance(${address})
+    `,
+    `
+    ************** ${queryName} **************
+    `
+  );
+
   let res = await terra.bank.balance(address);
-  const niceOutput = JSON.stringify(res, null, 4);
-  logToFile(logPath, niceOutput, "");
+
+  logToFile(
+    logPath,
+    `response:
+    ${JSON.stringify(res, null, 4)}
+    `,
+    ""
+  );
   return res;
 }
 
@@ -423,10 +438,25 @@ export async function queryContractDebug(
   queryName: String,
   logPath: fs.PathOrFileDescriptor
 ): Promise<any> {
-  logToFile(logPath, "", `************** ${queryName} **************`);
+  logToFile(
+    logPath,
+    `query: 
+     ${JSON.stringify(query, null, 4)}
+    `,
+    `
+    ************** ${queryName} **************
+    `
+  );
+
   let res = await queryContract(terra, contractAddress, query);
-  const niceOutput = JSON.stringify(res, null, 4);
-  logToFile(logPath, niceOutput, "");
+
+  logToFile(
+    logPath,
+    `response:  
+     ${JSON.stringify(res, null, 4)} 
+    `,
+    ""
+  );
   return res;
 }
 
